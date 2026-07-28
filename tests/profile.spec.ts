@@ -42,19 +42,18 @@ test.describe('Perfil', () => {
     });
   });
 
-  test.describe('defecto conocido: sesión de agente', () => {
+  test.describe('sesión de agente en carga completa', () => {
     test.use({ storageState: STORAGE_STATE.agent });
 
     test('recargar /perfil no debe cerrar la sesión del agente @regression', async ({
       perfilPage,
       page,
     }) => {
-      // PROP-BUG-02 (ver TEST-STRATEGY.md §2): GET /auth/me devuelve 500
-      // ("column \"published_at\" does not exist") específicamente para el
-      // rol agente en una carga completa de página, lo que expulsa al
-      // usuario. Reproducido 3/3 veces solo con este rol; owner no lo sufre.
-      test.fail(true, 'PROP-BUG-02: /auth/me 500 para el rol agente en full reload.');
-
+      // Regresión de PROP-BUG-02, ya corregido (ver TEST-STRATEGY.md §5).
+      // `/auth/me` devolvía 500 para el rol agente en cualquier carga completa
+      // de página y expulsaba al usuario. Se mantiene el caso —con carga
+      // completa deliberada, no navegación SPA— porque es la condición exacta
+      // que disparaba el defecto y la única que lo detectaría si vuelve.
       await page.goto('/perfil');
       await perfilPage.expectRoleLabel(USERS.agent.roleLabel);
     });

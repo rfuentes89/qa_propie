@@ -28,15 +28,12 @@ test.describe('Navegación inferior por rol', () => {
     });
   });
 
-  test.describe(`${USERS.agent.roleLabel} (agent) — defecto conocido`, () => {
+  test.describe(`${USERS.agent.roleLabel} (agent)`, () => {
     test.use({ storageState: STORAGE_STATE.agent });
 
     test('muestra Publicar y Mis Props. @smoke', async ({ explorarPage }) => {
-      // PROP-BUG-02 (ver TEST-STRATEGY.md §2): GET /auth/me devuelve 500 para
-      // el rol agente en una carga completa de página, así que la nav nunca
-      // llega a renderizar como autenticada. Reproducido 3/3 en runs limpios.
-      test.fail(true, 'PROP-BUG-02: /auth/me 500 rompe la nav autenticada para agent.');
-
+      // Regresión de PROP-BUG-02, ya corregido (ver TEST-STRATEGY.md §5): el
+      // 500 de `/auth/me` impedía que la nav renderizara como autenticada.
       await explorarPage.goto();
       await expect(explorarPage.nav.publicar).toBeVisible();
       await expect(explorarPage.nav.misPropiedades).toBeVisible();

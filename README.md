@@ -9,7 +9,7 @@ priorizados y riesgos) está en [`docs/TEST-STRATEGY.md`](docs/TEST-STRATEGY.md)
 La ronda de testing manual que originó parte de la cobertura está en
 [`docs/manual_testing_Propie.pdf`](docs/manual_testing_Propie.pdf).
 
-⚠️ **Los tests marcados con `test.fail()` fallan a propósito.** Son 25 casos
+⚠️ **Los tests marcados con `test.fail()` fallan a propósito.** Son 15 casos
 de regresión que documentan defectos reales del sitio (ver TEST-STRATEGY.md
 §2 y §3). Mientras el bug exista, el caso "falla como se espera" y la suite
 queda en verde. Si alguno empieza a **"pasar inesperadamente"**, no es un
@@ -26,11 +26,17 @@ PUB-02 vigila que eso se siga cumpliendo.
 es la protección anti-bot de Vercel (HTTP 403). Esperá unos minutos y volvé a
 correr con `--workers=1`. Ver TEST-STRATEGY.md §11.
 
-Estado actual: 77 casos. GAL-01 se omite en `mobile-chrome` a propósito (el
-defecto que vigila solo existe en el mosaico de escritorio). La última corrida
-completa en verde fue de 75 casos; las incorporaciones posteriores
-(`galeria.spec.ts`) se verificaron por separado con `--repeat-each=2`, pero
-**falta una corrida completa limpia** que confirme el conjunto.
+**Estado actual: 77 casos, 76 en verde y 1 omitido, sin fallos ni flaky**
+(corrida completa del 2026-07-28 con `--workers=1`). GAL-01 se omite en
+`mobile-chrome` a propósito: el defecto que vigila solo existe en el mosaico
+de escritorio.
+
+🎉 **La suite ya detectó un arreglo por su cuenta.** El 2026-07-28, los 5 casos
+que vigilaban PROP-BUG-02 (`column "published_at" does not exist`) empezaron a
+reportar *"Expected to fail, but passed"*: el equipo había corrido la
+migración pendiente del backend. Se verificó contra la API, se les quitó el
+`test.fail()` y hoy vigilan que el arreglo no se revierta. Ver
+TEST-STRATEGY.md §5.
 
 ## Requisitos
 - Node.js 18+ (probado con v24).

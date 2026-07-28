@@ -15,25 +15,31 @@ test.describe('Perfil del agente', () => {
   test.use({ storageState: STORAGE_STATE.agent });
 
   test('guardar el teléfono no debe mostrar un error @regression', async ({ perfilPage, page }) => {
-    // PROP-BUG-02, cuarto síntoma (ver TEST-STRATEGY.md §3). El PATCH del
-    // perfil funciona —el teléfono queda guardado—, pero la app llama después
-    // a /auth/me para refrescar el usuario, ese 500 revienta, y la UI muestra
-    // "Error actualizando perfil". De ahí la contradicción que reportó la
-    // ronda manual: "muestra mensaje de error. No obstante guardó el número".
-    test.fail(true, 'PROP-BUG-02: el refresco post-guardado llama a /auth/me, que responde 500.');
-
+    // Regresión de PROP-BUG-02, ya corregido (ver TEST-STRATEGY.md §5).
+    //
+    // Este era su cuarto síntoma, y el más engañoso: el PATCH del perfil
+    // siempre funcionó —el teléfono quedaba guardado—, pero la app llamaba
+    // después a /auth/me para refrescar el usuario, ese 500 reventaba, y la
+    // UI mostraba "Error actualizando perfil". De ahí la contradicción que
+    // reportó la ronda manual: "muestra mensaje de error. No obstante guardó
+    // el número". Al aplicarse la migración el toast desapareció sin que se
+    // tocara el código del perfil, lo que confirmó el diagnóstico.
     await perfilPage.gotoViaSpa();
 
     const nuevoTelefono = `+54935112${Date.now().toString().slice(-5)}`;
     await perfilPage.editProfileButton.click();
     await perfilPage.phoneInput.fill(nuevoTelefono);
 
-    const authMeFallo = page
-      .waitForResponse((r) => r.url().includes('/auth/me') && r.status() >= 500, { timeout: 10_000 })
+    // Se espera al refresco posterior al guardado —sea cual sea su estado—
+    // antes de comprobar que no hay toast de error. Filtrar por 5xx, como
+    // hacía la versión anterior, ahora agotaría el timeout inútilmente en
+    // cada corrida, porque ese 500 ya no ocurre.
+    const refrescoDeSesion = page
+      .waitForResponse((r) => r.url().includes('/auth/me'), { timeout: 10_000 })
       .catch(() => null);
 
     await perfilPage.saveProfileButton.click();
-    await authMeFallo;
+    await refrescoDeSesion;
 
     await expect(
       page.getByText('Error actualizando perfil'),

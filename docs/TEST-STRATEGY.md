@@ -52,18 +52,23 @@ El objetivo de esta estrategia es doble:
 La ronda manual reportó 18 incidencias. Al verificarlas en vivo, se
 **agruparon por causa raíz**, lo que cambia bastante el panorama:
 
-- **Tres síntomas distintos resultaron ser el mismo bug de backend.** "Perfil
-  no encontrado" del agente, "Ver perfil del agente" desde solicitudes, y la
-  sesión de agente que se cae al recargar devuelven todos el mismo error de
-  base de datos: `column "published_at" does not exist`.
+- **Cuatro síntomas distintos resultaron ser el mismo bug de backend.** "Perfil
+  no encontrado" del agente, "Ver perfil del agente" desde solicitudes, el
+  error al guardar el teléfono y la sesión de agente que se cae al recargar
+  devolvían todos el mismo error de base de datos:
+  `column "published_at" does not exist`. **Ya está corregido**
+  (ver [§5](#5-hallazgos-ya-corregidos)).
 - **Un hallazgo se explicó por otro.** "Al presionar volver te saca de la
   sesión" no era un problema del botón volver: era el reload completo
   disparando un 500 que la app confunde con un 401.
-- **Varios ya estaban corregidos** por el equipo de desarrollo desde la ronda
-  manual (ver [§5](#5-hallazgos-ya-corregidos)).
+- **Dos hallazgos no eran defectos**: los filtros del mapa (#6) y el recorrido
+  circular del carrusel (#14). Ver [§4](#4-hallazgos-manuales-pendientes-de-verificar).
+- **Varios ya estaban corregidos** por el equipo de desarrollo (ver
+  [§5](#5-hallazgos-ya-corregidos)).
 
-Reportar 6 defectos con causa raíz identificada es mucho más accionable para
-desarrollo que reportar 18 síntomas sueltos.
+Reportar defectos con causa raíz identificada es mucho más accionable para
+desarrollo que reportar 18 síntomas sueltos: el más grave de todos se cerró
+con **un solo arreglo** de backend.
 
 ### Tabla de defectos vigentes
 
@@ -71,7 +76,6 @@ desarrollo que reportar 18 síntomas sueltos.
 |----|---------|-----------|--------|--------------|
 | **PROP-BUG-04** | Los favoritos no se borran al cerrar sesión ni están aislados por usuario | **Crítica** | Manual #1 | ✅ `favoritos.spec.ts` |
 | **PROP-BUG-06** | Un error 5xx del backend se maneja como 401 y borra las credenciales | **Crítica** | Verificación en vivo | ✅ `sesion-resiliencia.spec.ts` |
-| **PROP-BUG-02** | `column "published_at" does not exist`: rompe `/auth/me` y el perfil público de agentes | **Crítica** | Análisis UX + Manual #15/#18 | ✅ `navigation`, `profile`, `agente-perfil-publico` |
 | **PROP-BUG-05** | Bucle de navegación entre la bandeja de mensajes y el chat | Alta | Manual #2 | ✅ `mensajes.spec.ts` |
 | **PROP-BUG-01** | El banner "Instalar Propie" intercepta el click de login | Alta | Análisis UX | ✅ `login.spec.ts` |
 | **PROP-BUG-07** | El perfil del **agente** enlaza a `/ayuda` y `/terminos`, que responden 404 | Alta | Manual #7/#9 | ✅ `perfil-agente.spec.ts` |
@@ -168,56 +172,6 @@ demuestra que el problema no es específico de agentes.
 
 ---
 
-### PROP-BUG-02 — `column "published_at" does not exist`
-
-> **Severidad: Crítica** · Origen: análisis UX + hallazgos manuales #15 y #18
-> · Tests: `navigation.spec.ts`, `profile.spec.ts`, `agente-perfil-publico.spec.ts`
-
-**Qué pasa.** Una migración pendiente en el backend hace que toda query que
-toque la tabla de agentes falle con un error de PostgreSQL. Se manifiesta en
-**dos endpoints distintos**, con el mismo error byte por byte:
-
-```jsonc
-// Síntoma 1 — la sesión del agente se cae en cualquier carga completa
-GET /auth/me → 500
-{"statusCode":500,"code":"42703","message":"column \"published_at\" does not exist"}
-
-// Síntoma 2 — el perfil público del agente no carga
-GET /agents/users/{id}/public → 500
-{"statusCode":500,"code":"42703","message":"column \"published_at\" does not exist"}
-```
-
-**Los tres síntomas que resultaron ser este mismo bug:**
-
-| Síntoma observado | Dónde se vio |
-|---|---|
-| Recargar como agente cierra la sesión y rompe la nav | Análisis UX |
-| "Ver perfil completo" del publicador → "Perfil no encontrado" | Manual #15 |
-| "Ver perfil del agente" desde solicitudes → "Perfil no encontrado" | Manual #18 |
-| Guardar el teléfono muestra "Error actualizando perfil" pero el dato sí se guarda | Manual #16 |
-
-**Sobre el cuarto síntoma (el teléfono).** Es el más engañoso de todos y vale
-la pena entenderlo: el `PATCH` del perfil **funciona bien**. Lo que falla es
-que, justo después de guardar, la app llama a `/auth/me` para refrescar los
-datos del usuario, y *esa* llamada devuelve el 500. La UI traduce el fallo a
-un genérico "Error actualizando perfil". Por eso la ronda manual anotó la
-contradicción *"muestra mensaje de error. No obstante guardó el numero"*, y
-por eso *"en otros perfiles no me sucedió"*: solo el rol agente dispara el 500.
-
-**Ojo con el diagnóstico.** La UI muestra *"Perfil no encontrado"*, que se lee
-como un 404 de datos —como si el agente no existiera—. No lo es: es un **500**
-degradado a un mensaje engañoso. Sin abrir la consola de red, un tester
-reportaría el bug equivocado y desarrollo buscaría en el lugar equivocado.
-
-**Impacto.** Rompe el rol agente por completo: pierde la sesión en cualquier
-deep link o F5, y su ficha pública —la que ven los clientes potenciales para
-decidir si contactarlo— no carga nunca. El flujo de solicitudes de agente
-queda cortado.
-
-**Arreglo sugerido a desarrollo.** Correr la migración pendiente que agrega la
-columna `published_at`. Es un único arreglo que cierra los tres síntomas.
-
----
 
 ### PROP-BUG-05 — Bucle entre la bandeja de mensajes y el chat
 
@@ -692,6 +646,58 @@ ronda manual. **No hace falta automatizarlos ni reportarlos.**
 > por rol, verificar un rol no cierra un defecto.** Los tres roles se
 > comprueban por separado o el hallazgo queda abierto.
 
+### ✅ PROP-BUG-02 — `column "published_at" does not exist` (corregido)
+
+> Era **Crítica** · Origen: análisis UX + hallazgos manuales #15, #16 y #18
+> · Corregido el 2026-07-28 · Tests: `navigation.spec.ts`, `profile.spec.ts`,
+> `perfil-agente.spec.ts`, `agente-perfil-publico.spec.ts`
+
+**Qué pasaba.** Una migración pendiente en el backend hacía que toda query
+sobre la tabla de agentes fallara con un error de PostgreSQL, en **dos
+endpoints distintos** y con el mismo mensaje byte por byte:
+
+```jsonc
+GET /auth/me                        → 500
+GET /agents/users/{id}/public       → 500
+{"statusCode":500,"code":"42703","message":"column \"published_at\" does not exist"}
+```
+
+**Los cuatro síntomas que resultaron ser este mismo defecto:**
+
+| Síntoma observado | Dónde se vio |
+|---|---|
+| Recargar como agente cierra la sesión y rompe la nav | Análisis UX |
+| "Ver perfil completo" del publicador → "Perfil no encontrado" | Manual #15 |
+| "Ver perfil del agente" desde solicitudes → "Perfil no encontrado" | Manual #18 |
+| Guardar el teléfono muestra "Error actualizando perfil" pero el dato sí se guarda | Manual #16 |
+
+**El síntoma más engañoso fue el del teléfono.** El `PATCH` del perfil siempre
+funcionó —el dato quedaba guardado—, pero la app llamaba después a `/auth/me`
+para refrescar el usuario, y *esa* llamada devolvía el 500. La UI lo traducía
+a un genérico "Error actualizando perfil". De ahí la contradicción que anotó
+la ronda manual: *"muestra mensaje de error. No obstante guardó el numero"*, y
+el *"en otros perfiles no me sucedió"* — solo el rol agente disparaba el 500.
+
+Cuando se aplicó la migración, ese toast desapareció **sin que se tocara el
+código del perfil**, lo que confirmó el diagnóstico a posteriori.
+
+**Cómo se detectó el arreglo: exactamente como estaba diseñado.** En la
+corrida del 2026-07-28 los 5 casos que vigilaban este defecto empezaron a
+reportar *"Expected to fail, but passed"*. No hubo que revisar la app a mano
+ni enterarse por el equipo de desarrollo: la suite avisó sola. Se verificó
+contra la API (`GET /agents/users/{id}/public` → `200`), se les quitó el
+`test.fail()` y pasaron a vigilar que el arreglo no se revierta.
+
+Es la justificación práctica de usar `test.fail()` en vez de `test.skip()` o
+de comentar los casos: un defecto documentado con `skip` se olvida; uno con
+`fail` avisa el día que se arregla.
+
+**Lo que este arreglo *no* cierra.** PROP-BUG-06 sigue vigente. La migración
+era el disparador, pero el defecto de fondo —que el cliente trate un 5xx como
+un 401 y borre las credenciales— sigue ahí. Sus tests simulan el 500 con
+`page.route()` en vez de apoyarse en la migración rota, precisamente para que
+siguieran cubriendo el problema después de este arreglo.
+
 ---
 
 ## 6. Roles y credenciales QA
@@ -877,11 +883,11 @@ hace falta extenderlo al resto de las pantallas.
 | LOG-03 | PROP-BUG-01: el banner de instalación bloquea el login | Alta | regression | Defecto conocido | `login.spec.ts` |
 | NAV-01 | Nav Explorador: Favoritos/Visitas, sin Publicar | Crítica | smoke | Funcional | `navigation.spec.ts` |
 | NAV-02 | Nav Propietario: Publicar/Mis Props., sin Favoritos | Crítica | smoke | Funcional | `navigation.spec.ts` |
-| NAV-03 | PROP-BUG-02: la nav de Agente se rompe por el 500 | Crítica | regression | Defecto conocido | `navigation.spec.ts` |
+| NAV-03 | Nav de Agente: Publicar/Mis Props. (regresión de PROP-BUG-02) | Crítica | smoke | Funcional | `navigation.spec.ts` |
 | PERF-01 | Etiqueta de rol correcta en `/perfil` | Alta | smoke | Funcional | `profile.spec.ts` |
 | PERF-02 | Logout vuelve a `/explorar` sin sesión | Crítica | smoke | Funcional | `profile.spec.ts` |
 | PERF-03 | PROP-BUG-03: el banner de ubicación bloquea el logout | Media | regression | Defecto conocido | `profile.spec.ts` |
-| PERF-04 | PROP-BUG-02: recargar `/perfil` no debe cerrar la sesión del agente | Crítica | regression | Defecto conocido | `profile.spec.ts` |
+| PERF-04 | Recargar `/perfil` no cierra la sesión del agente (regresión de PROP-BUG-02) | Crítica | regression | Funcional | `profile.spec.ts` |
 | EXP-01 | El listado de propiedades carga sin sesión | Alta | smoke | Funcional | `explorar.spec.ts` |
 | EXP-02 | Filtros Todos/Alquiler/Venta visibles | Media | smoke | Funcional | `explorar.spec.ts` |
 | **FAV-01** | PROP-BUG-04: cerrar sesión debe limpiar los favoritos locales | **Crítica** | regression | Defecto conocido | `favoritos.spec.ts` |
@@ -889,10 +895,10 @@ hace falta extenderlo al resto de las pantallas.
 | **FAV-03** | PROP-BUG-04: un usuario no debe heredar los favoritos de otro | **Crítica** | regression | Defecto conocido | `favoritos.spec.ts` |
 | **SES-01** | PROP-BUG-06: un 500 de `/auth/me` no debe borrar las credenciales | **Crítica** | regression | Defecto conocido | `sesion-resiliencia.spec.ts` |
 | **SES-02** | PROP-BUG-06: un 500 de `/auth/me` no debe expulsar de `/perfil` | **Crítica** | regression | Defecto conocido | `sesion-resiliencia.spec.ts` |
-| **AGT-01** | PROP-BUG-02: `GET /agents/users/{id}/public` debe responder 200 | Crítica | regression | Defecto conocido (API) | `agente-perfil-publico.spec.ts` |
-| **AGT-02** | PROP-BUG-02: la ficha pública del agente no debe decir "Perfil no encontrado" | Crítica | regression | Defecto conocido | `agente-perfil-publico.spec.ts` |
+| **AGT-01** | `GET /agents/users/{id}/public` responde 200 (regresión de PROP-BUG-02) | Crítica | regression | Contrato de API | `agente-perfil-publico.spec.ts` |
+| **AGT-02** | La ficha pública del agente carga (regresión de PROP-BUG-02) | Crítica | regression | Funcional | `agente-perfil-publico.spec.ts` |
 | **MSG-01** | PROP-BUG-05: "Volver" en la bandeja no debe devolver al chat | Alta | regression | Defecto conocido | `mensajes.spec.ts` |
-| **AGT-03** | PROP-BUG-02: guardar el teléfono no debe mostrar un error | Alta | regression | Defecto conocido | `perfil-agente.spec.ts` |
+| **AGT-03** | Guardar el teléfono no muestra error (regresión de PROP-BUG-02) | Alta | regression | Funcional | `perfil-agente.spec.ts` |
 | **AGT-04** | PROP-BUG-07: el menú del agente no debe enlazar a rutas 404 | Alta | regression | Defecto conocido | `perfil-agente.spec.ts` |
 | **PROP-01** | PROP-BUG-09: los botones de cabecera deben tener nombre accesible | Media | regression | Defecto conocido (a11y) | `propiedad-acciones.spec.ts` |
 | **PROP-02** | PROP-BUG-09: el botón sin etiqueta debe hacer algo al pulsarlo | Media | regression | Defecto conocido | `propiedad-acciones.spec.ts` |
@@ -1025,8 +1031,10 @@ credenciales válidas, y el sitio respondiendo sin checkpoint activo.
 
 1. **Reportar a desarrollo** PROP-BUG-04 y PROP-BUG-06 (los dos críticos
    nuevos), con la evidencia de `localStorage` y el mensaje exacto del 500.
-2. **Reportar PROP-BUG-02 como un solo ticket**, no cuatro: la migración
-   faltante cierra los cuatro síntomas de una vez.
+2. ✅ **PROP-BUG-02 corregido** el 2026-07-28. La suite lo detectó sola: los 5
+   casos pasaron a reportar *"Expected to fail, but passed"*. Se les quitó el
+   `test.fail()` y ahora vigilan que no se revierta.
+   ⚠️ Ojo: **esto no cierra PROP-BUG-06**, que era el defecto de fondo.
 3. **Reportar PROP-BUG-13 y pedir `DELETE /properties/{id}`.** Es el defecto
    que además bloquea la automatización de #8 y #14, así que tiene doble
    retorno. Hay que avisar también de que quedan propiedades huérfanas en las

@@ -3,23 +3,22 @@ import { USERS } from '../src/data/users';
 import { userIdFromStorageState } from '../src/utils/session';
 
 /**
- * PROP-BUG-02 (segundo síntoma) — El perfil público de un agente no carga.
- * Ver TEST-STRATEGY.md §2.
+ * Perfil público del agente — regresión de PROP-BUG-02, **ya corregido**.
+ * Ver TEST-STRATEGY.md §5.
  *
- * La UI muestra "Perfil no encontrado", que se lee como un 404 de datos, pero
- * la causa real es un 500 del backend:
+ * Estos casos nacieron como `test.fail()` documentando un defecto: el
+ * endpoint respondía 500 con `column "published_at" does not exist`, y la UI
+ * lo degradaba a un engañoso "Perfil no encontrado" que parecía un 404 de
+ * datos. Era una migración faltante en el backend que rompía toda query sobre
+ * la tabla de agentes.
  *
- *   GET /agents/users/{id}/public → 500
- *   {"statusCode":500,"code":"42703","message":"column \"published_at\" does not exist"}
- *
- * Es el MISMO error (mismo código 42703, misma columna) que rompe /auth/me
- * para el rol agente. No son dos bugs: es una migración faltante en el
- * backend que revienta toda query que toque la tabla de agentes.
+ * La suite detectó el arreglo sola: al aplicarse la migración, los casos
+ * empezaron a "pasar inesperadamente" y se les quitó el `test.fail()`.
+ * Ahora vigilan que el arreglo no se revierta.
  *
  * Se cubre en dos niveles a propósito:
- *  - API: fija el contrato y captura el mensaje de error exacto para el
- *    reporte a desarrollo, sin depender del render.
- *  - UI: prueba lo que el usuario realmente sufre (el flujo roto).
+ *  - API: fija el contrato del backend, sin depender del render.
+ *  - UI: prueba lo que el usuario realmente ve.
  */
 test.describe('Perfil público del agente', () => {
   // El id se decodifica del JWT del storageState en vez de hardcodearse: las
@@ -28,8 +27,6 @@ test.describe('Perfil público del agente', () => {
   const agentId = () => userIdFromStorageState('agent');
 
   test('GET /agents/users/{id}/public debe responder 200 @regression', async ({ request }) => {
-    test.fail(true, 'PROP-BUG-02: el endpoint responde 500 (column "published_at" does not exist).');
-
     const response = await request.get(
       `https://propie-api.onrender.com/agents/users/${agentId()}/public`,
     );
@@ -43,8 +40,6 @@ test.describe('Perfil público del agente', () => {
   test('la ficha pública del agente no debe mostrar "Perfil no encontrado" @regression', async ({
     page,
   }) => {
-    test.fail(true, 'PROP-BUG-02: el 500 del backend se degrada a "Perfil no encontrado".');
-
     await page.goto(`/perfil/${agentId()}`);
 
     await expect(page.getByText('Perfil no encontrado.')).toBeHidden();
