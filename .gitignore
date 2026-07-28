@@ -1,0 +1,19 @@
+node_modules/
+.env
+.env.local
+playwright-report/
+test-results/
+results/
+.auth/
+.playwright-mcp/
+.mcp.json
+*.log
+.DS_Store
+
+# Configuración local de herramientas del entorno de desarrollo.
+.claude/
+
+# Exportaciones de la documentación (Quarto/pandoc). Se regeneran desde el .md,
+# y los snapshots viejos pueden arrastrar datos que ya se quitaron del origen.
+docs/*.html
+docs/*_files/
