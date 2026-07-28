@@ -62,6 +62,40 @@ npm run test:ui          # modo UI interactivo
 npm run report           # abre el último informe HTML
 ```
 
+## Integración continua
+
+El workflow [`.github/workflows/e2e.yml`](.github/workflows/e2e.yml) corre la
+suite en GitHub Actions. **Requiere configurar un secreto** antes de la primera
+ejecución:
+
+> Settings → Secrets and variables → Actions → New repository secret
+> · Nombre: `PROPIE_QA_PASSWORD` · Valor: la contraseña de las cuentas QA
+
+Sin ese secreto, `auth.setup.ts` corta con un mensaje explicando qué falta.
+
+**Cuándo se ejecuta**, y por qué así: esta suite prueba un sitio de terceros ya
+desplegado, no el código de este repositorio.
+
+| Disparador | Motivo |
+|---|---|
+| Programado (diario, 06:00 UTC) | Es el principal: la app cambia sin que este repo se entere |
+| `push` a `main` | Solo si cambian `tests/`, `src/` o la config — un commit de documentación no gasta una corrida |
+| Manual (`workflow_dispatch`) | Para lanzarla cuando haga falta |
+
+### ⚠️ Cómo leer un build en rojo
+
+En esta suite **el rojo no siempre es malo**. Hay tres causas posibles y se
+distinguen por el mensaje:
+
+| Mensaje | Qué significa | Qué hacer |
+|---|---|---|
+| `Expected to fail, but passed` | 🎉 **Arreglaron un defecto.** Ya pasó una vez, con PROP-BUG-02 | Verificar, quitarle el `test.fail()` y moverlo a TEST-STRATEGY.md §5 |
+| Los 3 casos de `auth.setup.ts` fallan juntos | Protección anti-bot de Vercel (HTTP 403), no una regresión | Relanzar más tarde |
+| Cualquier otro fallo | Regresión real | Investigar |
+
+**Nunca "arregles" el rojo borrando o saltando el caso**: en el primer supuesto
+estarías tirando la señal más valiosa que da esta suite.
+
 ## Estructura
 ```
 qa-propie-playwright/

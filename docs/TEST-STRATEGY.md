@@ -1009,6 +1009,28 @@ Precauciones:
 - `curl` **no sirve** para diagnosticarlo: siempre recibe 403 porque no
   ejecuta el desafío JavaScript. Hay que probar con un navegador real.
 
+### Integración continua
+
+La suite corre en GitHub Actions
+([`.github/workflows/e2e.yml`](../.github/workflows/e2e.yml)), con la
+contraseña inyectada desde el secreto `PROPIE_QA_PASSWORD`.
+
+El disparador principal es **programado (diario)**, no `push`. Es una
+consecuencia directa de qué prueba esta suite: un sitio de terceros ya
+desplegado, que cambia sin que este repositorio se entere. Ejecutarla en cada
+push mediría el repo equivocado. Los `push` a `main` sí la disparan, pero solo
+cuando cambia la suite en sí (`tests/`, `src/`, la config).
+
+En CI se usa **1 worker** y `concurrency` sin corridas simultáneas: el volumen
+en paralelo dispara la protección anti-bot de Vercel y produce falsos rojos.
+La corrida tarda ~7 minutos, irrelevante para algo programado.
+
+**Un build en rojo tiene tres lecturas distintas** en esta suite, y conviene
+distinguirlas antes de tocar nada: un defecto arreglado
+(`Expected to fail, but passed`), el checkpoint de Vercel (los 3 casos de
+`auth.setup.ts` fallando juntos), o una regresión real. La tabla completa está
+en el [README](../README.md#integración-continua).
+
 ### Criterios de entrada
 
 `npm ci` + `npx playwright install` correctos, los 3 usuarios QA con

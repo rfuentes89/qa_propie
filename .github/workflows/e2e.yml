@@ -1,0 +1,75 @@
+name: E2E Propie
+
+# Esta suite prueba un sitio de terceros ya desplegado, no el código de este
+# repositorio. Eso cambia cuándo tiene sentido ejecutarla:
+#
+#  - `schedule`: es el disparador principal. La app cambia sin que este repo se
+#    entere, así que la corrida diaria es la que detecta tanto regresiones
+#    nuevas como defectos ya arreglados (ver la nota sobre test.fail abajo).
+#  - `push`: solo cuando cambia la suite en sí. Un commit que toca únicamente
+#    documentación no necesita gastar una corrida de 7 minutos.
+#  - `workflow_dispatch`: para lanzarla a mano cuando haga falta.
+on:
+  schedule:
+    # 06:00 UTC ≈ 03:00 en Argentina: fuera de horario de uso.
+    - cron: '0 6 * * *'
+  push:
+    branches: [main]
+    paths:
+      - 'tests/**'
+      - 'src/**'
+      - 'playwright.config.ts'
+      - 'package-lock.json'
+      - '.github/workflows/e2e.yml'
+  workflow_dispatch:
+
+# Nunca dos corridas a la vez contra el mismo sitio: el volumen simultáneo
+# dispara la protección anti-bot de Vercel y ambas terminan en falso rojo.
+concurrency:
+  group: e2e-propie
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Chromium + Mobile Chrome
+    runs-on: ubuntu-latest
+    # La suite corre con 1 worker (~7 min). El margen cubre la instalación.
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Ambos proyectos (Desktop Chrome y Pixel 7) usan Chromium: no hace
+      # falta descargar Firefox ni WebKit.
+      - name: Instalar Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Ejecutar la suite
+        env:
+          PROPIE_QA_PASSWORD: ${{ secrets.PROPIE_QA_PASSWORD }}
+        run: npx playwright test
+
+      # `always()`: el reporte es más útil justamente cuando algo falla.
+      - name: Publicar el reporte HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Publicar el JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results
+          path: results/junit.xml
+          retention-days: 30

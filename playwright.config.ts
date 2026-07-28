@@ -13,18 +13,22 @@ dotenv.config();
  * - No hay un storageState único: hay 3 roles (client/owner/agent), así que
  *   cada storageState se aplica por describe/test con `test.use(...)`, no aquí.
  * - Trace / screenshot / video solo en fallo para acelerar la ejecución verde.
- * - `workers` se limita también en local (no solo CI): el baseURL es un
- *   sitio real desplegado en Vercel, no un servidor local — con el default
- *   de Playwright (~núcleos/2) varios workers golpeándolo a la vez producen
- *   timeouts de navegación que no son bugs de la app ni de los tests
- *   (confirmado: la misma suite en serie pasa 19/19 sin fallos).
+ * - `workers` se limita fuerte, y **en CI más que en local**: el baseURL es un
+ *   sitio real desplegado en Vercel, no un servidor local. Dos motivos:
+ *     1. Con el default de Playwright (~núcleos/2), varios workers golpeándolo
+ *        a la vez producen timeouts de navegación que no son bugs ni de la app
+ *        ni de los tests.
+ *     2. Vercel activa una protección anti-bot (HTTP 403) ante volumen
+ *        sostenido, y cuando salta hasta `auth.setup.ts` falla. En CI se usa
+ *        1 worker: la suite completa tarda ~7 min, que para una corrida
+ *        programada es irrelevante frente a un falso rojo (ver §11).
  */
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
-  workers: process.env.CI ? 4 : 3,
+  workers: process.env.CI ? 1 : 3,
   timeout: 30_000,
   expect: { timeout: 7_000 },
 
