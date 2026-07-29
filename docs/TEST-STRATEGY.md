@@ -7,7 +7,7 @@
 > 2. La ronda de **testing manual exploratorio** documentada en
 >    [`manual_testing_Propie.pdf`](./manual_testing_Propie.pdf) (18 hallazgos).
 > 3. **Verificación en vivo** de esos 18 hallazgos contra el entorno desplegado,
->    hecha el 2026-07-27 para separar lo vigente de lo ya corregido.
+>    hecha el 2026-07-28 para separar lo vigente de lo ya corregido.
 
 ---
 
