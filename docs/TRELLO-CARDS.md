@@ -15,24 +15,25 @@ la descripción (Trello renderiza este markdown).
 | 4 | PROP-BUG-17 · El mensaje falla en silencio | Alta | frontend · chat |
 | 5 | PROP-BUG-22 · "Pausada" no despublica la propiedad | Alta | backend · estados |
 | 6 | PROP-BUG-25 · "Finalizada" es irreversible y no lo advierte | Alta | frontend · estados |
-| 7 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
-| 8 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
-| 9 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
-| 10 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
-| 11 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
-| 12 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
-| 13 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
-| 14 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
-| 15 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
-| 16 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
-| 17 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
-| 18 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
-| 19 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
-| 20 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
-| 21 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
-| 22 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
-| 23 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
-| 24 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
+| 7 | PROP-BUG-26 · Se ofrece agendar visita donde no se puede, y falla en silencio | Alta | frontend · visitas |
+| 8 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
+| 9 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
+| 10 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
+| 11 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
+| 12 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
+| 13 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
+| 14 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
+| 15 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
+| 16 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
+| 17 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
+| 18 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
+| 19 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
+| 20 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
+| 21 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
+| 22 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
+| 23 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
+| 24 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 25 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
 
 > 💡 **PROP-BUG-16 y 17 se arreglan juntos.** Uno es el contrato del backend y
 > el otro el manejo del error en el frontend. Cerrar solo uno deja al usuario
@@ -401,6 +402,55 @@ además el registro anterior como basura permanente.
 
 Diálogo de confirmación explicando que la acción no se puede deshacer, o sacar
 "Finalizar" del desplegable y tratarla como acción destructiva aparte.
+
+---
+
+## [PROP-BUG-26] Se ofrece agendar visita donde no se puede, y el fallo es silencioso
+
+**Severidad:** Alta · **Área:** frontend / visitas
+
+### Qué pasa
+
+En una conversación sobre una propiedad **no disponible** (`FINALIZED`, y
+presumiblemente `PAUSED`), el chat sigue ofreciendo el botón **"Agendar
+visita"**. El formulario se abre, acepta todos los datos, y al enviar falla
+**sin mostrar nada**.
+
+### Pasos para reproducir
+
+1. Como owner, abrir la conversación de una propiedad finalizada.
+2. Pulsar "Agendar visita", completar fecha, hora y duración.
+3. Enviar: la pantalla no cambia y el formulario queda abierto.
+
+### Evidencia
+
+```jsonc
+POST /property-visits → 404
+{ "success": false, "error": { "code": "PROPERTY_NOT_AVAILABLE" } }
+```
+
+Estado de la UI 5 s después del envío:
+
+```jsonc
+{ "mencionaError": false, "lineasError": [],
+  "formularioSigueAbierto": true, "mencionaVisitaNueva": false }
+```
+
+### Impacto
+
+Dos problemas encadenados: se ofrece una acción imposible —el estado de la
+propiedad se conoce antes de renderizar el chat—, y el fallo es invisible.
+
+El costo es concreto: el dueño cree haber coordinado una visita con un
+interesado, y nadie se presenta.
+
+> Mismo patrón que **PROP-BUG-17**. Que se repita en dos flujos distintos
+> sugiere que falta un mecanismo general de notificación de errores.
+
+### Arreglo sugerido
+
+Ocultar o deshabilitar "Agendar visita" cuando la propiedad no admite visitas,
+explicando por qué, y mostrar el error si el `POST` falla igualmente.
 
 ---
 

@@ -94,6 +94,7 @@ con **un solo arreglo** de backend.
 | **PROP-BUG-22** | El estado "Pausada" no despublica: la propiedad sigue en el catálogo | Alta | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-25** | "Finalizada" es irreversible y el desplegable no lo advierte | Alta | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-13** | Abrir el wizard crea una propiedad ACTIVE sin título, imposible de borrar | Alta | Verificación en vivo | ✅ `publicar.spec.ts` |
+| **PROP-BUG-26** | Se ofrece agendar visita en una propiedad no disponible, y el fallo es silencioso | Alta | Revisión de visitas | ❌ pendiente |
 | **PROP-BUG-23** | El listado no distingue una propiedad reservada de una disponible | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-24** | Un estado inválido devuelve 500 con el error de validación crudo | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-11** | El paso 3 exige habitaciones y baños también para un terreno | Media | Manual #11 | ✅ `publicar.spec.ts` |
@@ -626,6 +627,53 @@ como una acción destructiva aparte.
 
 ---
 
+### PROP-BUG-26 — Se ofrece agendar visita donde no se puede, y el fallo es silencioso
+
+> **Severidad: Alta** · Origen: revisión de visitas (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** En una conversación sobre una propiedad **no disponible**
+—`FINALIZED`, y presumiblemente también `PAUSED`— el chat sigue ofreciendo el
+botón **"Agendar visita"**. El formulario se abre, acepta fecha, hora,
+duración y comentarios, y al enviar **falla sin decir nada**.
+
+**Evidencia.** Conversación `fd2075ec…`, sobre la propiedad "Casa"
+(`FINALIZED`), como owner:
+
+```jsonc
+POST /property-visits → 404
+{ "success": false, "error": { "code": "PROPERTY_NOT_AVAILABLE" } }
+```
+
+Estado de la UI cinco segundos después del envío:
+
+```jsonc
+{ "mencionaError": false,      // ningún aviso en pantalla
+  "lineasError": [],
+  "formularioSigueAbierto": true,
+  "mencionaVisitaNueva": false }
+```
+
+**Impacto.** Son dos problemas encadenados:
+
+1. **Se ofrece una acción imposible.** El estado de la propiedad se conoce
+   antes de renderizar el chat; el botón no debería estar.
+2. **El fallo es invisible.** El usuario completa el formulario, envía, y la
+   pantalla no cambia. No hay forma de saber que la visita no se agendó.
+
+Es **el mismo patrón que PROP-BUG-17** en el chat: una acción que falla sin
+que el usuario se entere. Que se repita en dos flujos distintos sugiere que
+falta un mecanismo general de notificación de errores, no un parche puntual.
+
+En este flujo el costo es concreto: el dueño cree haber coordinado una visita
+con un interesado, y nadie se presenta.
+
+**Arreglo sugerido.** Ocultar o deshabilitar "Agendar visita" cuando la
+propiedad no admite visitas —explicando por qué—, y mostrar el error si el
+`POST` falla igualmente.
+
+---
+
 ### PROP-BUG-23 — El listado no distingue una propiedad reservada de una disponible
 
 > **Severidad: Media** · Origen: revisión de estados (2026-07-31)
@@ -686,8 +734,15 @@ PATCH /properties/{id}/status  {"status":"BANANA"}
 Se relaciona con **PROP-BUG-06**: la app trata los 5xx como sesión inválida,
 así que un 500 espurio como este puede además desloguear al usuario.
 
+**No está aislado en ese endpoint.** Al revisar el flujo de visitas apareció
+el mismo comportamiento en otro recurso: `POST /property-visits` con cuerpo
+vacío también devuelve **500** con el volcado del validador, en vez de 400.
+Son al menos dos endpoints, así que probablemente sea el manejador de errores
+global y no un descuido puntual.
+
 **Arreglo sugerido.** Devolver 400 con un mensaje propio ante fallo de
-validación, y no exponer el volcado del validador.
+validación, y no exponer el volcado del validador. Al ser sistémico, conviene
+arreglarlo en el manejador global de errores.
 
 ---
 
