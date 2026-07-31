@@ -1,28 +1,37 @@
 # Tarjetas para Trello — defectos vigentes de Propie
 
-Exportación del 2026-07-28 desde [`TEST-STRATEGY.md`](./TEST-STRATEGY.md), lista
-para copiar y pegar. Cada bloque es una tarjeta: la línea `##` es el título y lo
-que sigue es la descripción (Trello renderiza este markdown).
+Exportación desde [`TEST-STRATEGY.md`](./TEST-STRATEGY.md), lista para copiar y
+pegar. Cada bloque es una tarjeta: la línea `##` es el título y lo que sigue es
+la descripción (Trello renderiza este markdown).
 
 **Etiquetas sugeridas:** `Crítica` · `Alta` · `Media` · `Baja` — y por área:
-`backend`, `frontend`, `a11y`, `datos`.
+`backend`, `frontend`, `a11y`, `datos`, `chat`.
 
 | # | Defecto | Severidad | Área |
 |---|---------|-----------|------|
 | 1 | PROP-BUG-04 · Fuga de favoritos entre usuarios | Crítica | frontend · datos |
 | 2 | PROP-BUG-06 · Un 5xx cierra la sesión | Crítica | frontend |
-| 3 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
-| 4 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
-| 5 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
-| 6 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
-| 7 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
-| 8 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
-| 9 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
-| 10 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
-| 11 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
-| 12 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
-| 13 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
-| 14 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 3 | PROP-BUG-16 · La API dice que se puede escribir y después rechaza con 403 | Alta | backend · chat |
+| 4 | PROP-BUG-17 · El mensaje falla en silencio | Alta | frontend · chat |
+| 5 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
+| 6 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
+| 7 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
+| 8 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
+| 9 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
+| 10 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
+| 11 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
+| 12 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
+| 13 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
+| 14 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
+| 15 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
+| 16 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
+| 17 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
+| 18 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 19 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
+
+> 💡 **PROP-BUG-16 y 17 se arreglan juntos.** Uno es el contrato del backend y
+> el otro el manejo del error en el frontend. Cerrar solo uno deja al usuario
+> a medias: o sigue sin poder escribir, o sigue sin enterarse de que falló.
 
 > 💡 **PROP-BUG-13 tiene doble retorno**: el endpoint `DELETE` que pide es
 > además lo que desbloquea automatizar el último hallazgo sin cubrir.
@@ -128,6 +137,176 @@ un estado de error recuperable con opción de reintentar.
 ### Vigilado por
 
 `tests/sesion-resiliencia.spec.ts` (SES-01, SES-02)
+
+---
+
+## [PROP-BUG-16] La API declara la conversación escribible y después rechaza el envío con 403
+
+**Severidad:** Alta · **Área:** backend / chat
+
+### Qué pasa
+
+El detalle de una conversación dice que se puede escribir en ella, y el envío
+falla con 403.
+
+### Pasos para reproducir
+
+```
+GET  /property-conversations/{id}
+     → { "status": "OPEN", "readOnly": false }
+
+POST /property-conversations/{id}/messages
+     → 403 { "code": "CHAT_DISABLED",
+             "message": "Chat is disabled for this property" }
+```
+
+### Evidencia
+
+Probadas las 3 conversaciones de `qa.client`: **2 de 3 fallan**.
+
+| Conversación | Propiedad | `readOnly` | POST |
+|---|---|---|---|
+| `fd2075ec…` | Casa | `false` | ❌ 403 `CHAT_DISABLED` |
+| `2e3a58f5…` | Departamento 2 dormitorios | `false` | ✅ 201 |
+| `a829d4b6…` | Departamento 1 dormitorio Centro | `false` | ❌ 403 `CHAT_DISABLED` |
+
+### Impacto
+
+`readOnly` es el contrato del que depende el frontend para decidir si habilita
+el compositor. Mientras mienta, **cualquier cliente de esa API va a ofrecer
+escribir donde no se puede**.
+
+### Arreglo sugerido
+
+Que `readOnly` (o un `chatEnabled` equivalente) refleje la misma condición que
+evalúa el `POST`. La regla ya existe en el backend; falta exponerla en el `GET`.
+
+> Se arregla junto con **PROP-BUG-17**: este es el contrato, aquel es el error
+> que el frontend no muestra.
+
+---
+
+## [PROP-BUG-17] Enviar un mensaje puede fallar sin que el usuario se entere
+
+**Severidad:** Alta · **Área:** frontend / chat
+
+### Qué pasa
+
+Cuando el `POST` del mensaje falla, la UI **no muestra nada**. El texto
+desaparece del compositor, no aparece ninguna burbuja y no hay ningún aviso:
+para el usuario, el mensaje se envió.
+
+### Pasos para reproducir
+
+1. Iniciar sesión como `qa.client` y abrir una conversación con el chat
+   deshabilitado (p. ej. `/mensajes/fd2075ec-3741-4208-b24f-9607917b86cd`).
+2. Escribir un mensaje y pulsar el botón de enviar.
+3. El texto se borra y no pasa nada más.
+
+### Evidencia
+
+```
+→ POST /property-conversations/{id}/messages
+← 403
+[consola] Failed to load resource: the server responded with a status of 403
+[consola] Error sending message {success: false, error: Object}
+```
+
+El error existe y la app lo registra. Simplemente no lo comunica.
+
+### Impacto
+
+Es el peor modo de fallo posible para un chat: el usuario cree haber contactado
+a la otra parte y espera una respuesta que nunca va a llegar, porque el mensaje
+nunca existió. En un marketplace inmobiliario, es una consulta comercial
+perdida sin que nadie se entere.
+
+### Arreglo sugerido
+
+Mostrar el error, **conservar el texto** en el compositor para no perder lo
+escrito, y ofrecer reintentar. Si la causa es `CHAT_DISABLED`, deshabilitar el
+compositor de entrada y explicar por qué.
+
+---
+
+## [PROP-BUG-18] El cliente se ve a sí mismo como su interlocutor en el chat
+
+**Severidad:** Media · **Área:** backend / chat
+
+### Qué pasa
+
+En la bandeja y en la cabecera del chat, al cliente se le muestra **su propio
+rol y su propio nombre** como contraparte: `Cliente · qa Propie`.
+
+### Pasos para reproducir
+
+1. Iniciar sesión como `qa.client` y abrir `/mensajes`.
+2. Entrar a cualquier conversación.
+3. La cabecera dice "Cliente · …" en lugar del propietario o el agente.
+
+### Evidencia
+
+La misma conversación, consultada con los tres tokens, devuelve un payload
+**idéntico**:
+
+```json
+{ "headerParticipantRole": "CLIENT",
+  "headerParticipantName": "qa Propie",
+  "inboxRoleLabel": "Cliente" }
+```
+
+Los tres usuarios tienen ids y roles distintos (`a4a36938`/CLIENT,
+`36516c49`/OWNER, `ad5337ed`/AGENT), así que no es coincidencia de datos: el
+campo se calcula **desde la conversación**, no relativo a quién la mira.
+
+Para owner y agent el resultado es correcto —hablan con un cliente—. Para el
+cliente es incorrecto.
+
+### Arreglo sugerido
+
+Resolver `headerParticipant*` e `inboxRoleLabel` en función del usuario
+autenticado: mostrar siempre *la otra* parte.
+
+---
+
+## [PROP-BUG-19] El chat muestra "Desconectado" siempre y no abre websocket
+
+**Severidad:** Media · **Área:** frontend / chat
+
+### Qué pasa
+
+El indicador de presencia muestra "Desconectado" incluso con la contraparte
+conectada y mirando la misma conversación.
+
+### Pasos para reproducir
+
+1. Abrir la misma conversación con dos usuarios a la vez, en sesiones
+   distintas (`qa.client` y `qa.owner`).
+2. Ambos siguen viendo "Desconectado".
+
+### Evidencia
+
+```
+presencia → client: Desconectado | owner: Desconectado
+websockets abiertos al entrar al chat: ninguno
+```
+
+Tampoco se observó *polling* tras el envío: la única petición fue el `POST`.
+
+### Impacto
+
+El indicador es decorativo y además **desinforma**: sugiere que la otra parte
+no está disponible cuando sí lo está.
+
+> ⚠️ **Sin confirmar:** que los mensajes no lleguen en tiempo real es una
+> inferencia de que no hay websocket, no una medición. No se pudo verificar de
+> punta a punta porque la única conversación entre dos cuentas QA tiene el chat
+> deshabilitado (PROP-BUG-16).
+
+### Arreglo sugerido
+
+Conectar el websocket, o —si la entrega en vivo no está en alcance todavía—
+quitar el indicador en vez de mostrar un estado falso.
 
 ---
 
@@ -395,12 +574,24 @@ no hay feedback (medido antes y después del click).
 2. Sin tooltip, ni un usuario vidente sabe qué hacen sin pulsarlos.
 3. Uno de ellos no hace nada.
 
-El botón contiguo ("Compartir") sí tiene `aria-label`, lo que sugiere un
-olvido puntual y no una decisión de diseño.
+El botón contiguo ("Compartir") sí tiene `aria-label`.
+
+**El compositor del chat tiene el mismo problema.** Sus dos botones —adjuntar
+y enviar— tampoco exponen `aria-label`, `title` ni texto:
+
+```json
+[ { "aria": null, "type": "button", "disabled": false, "texto": "" },
+  { "aria": null, "type": "button", "disabled": true,  "texto": "" } ]
+```
+
+El de enviar solo se distingue porque arranca deshabilitado. Combinado con
+PROP-BUG-20 (Enter no envía), un usuario de lector de pantalla **no tiene forma
+de descubrir cómo mandar un mensaje**.
 
 ### Arreglo sugerido
 
-Agregar `aria-label` y `title` a ambos, y conectar o remover el que no tiene
+Agregar `aria-label` y `title` a los cuatro botones (los dos de la cabecera de
+propiedad y los dos del compositor), y conectar o remover el que no tiene
 acción.
 
 ### Vigilado por
@@ -618,6 +809,42 @@ Cualquiera de las dos vías sirve:
 ### Vigilado por
 
 `tests/galeria.spec.ts` (GAL-02, GAL-03)
+
+---
+
+## [PROP-BUG-20] Enter no envía el mensaje en el chat
+
+**Severidad:** Baja · **Área:** frontend / chat
+
+### Qué pasa
+
+Escribir un mensaje y pulsar Enter no hace nada. Hay que pulsar el botón de
+enviar, que además no tiene etiqueta (PROP-BUG-09).
+
+### Pasos para reproducir
+
+1. Abrir cualquier conversación en `/mensajes`.
+2. Escribir un texto en el compositor y pulsar Enter.
+3. No pasa nada: el texto sigue ahí y no se envía.
+
+### Causa
+
+El compositor **no está dentro de un `<form>`**, así que el navegador no
+dispara ningún submit:
+
+```json
+{ "inputTag": "INPUT", "inputPlaceholder": "Escribí tu mensaje...", "hayForm": false }
+```
+
+### Impacto
+
+Enter es la vía que todo el mundo espera en un chat. Combinado con
+PROP-BUG-09, el usuario tiene que descubrir por prueba y error cómo enviar.
+
+### Arreglo sugerido
+
+Envolver el compositor en un `<form>` con `onSubmit`, o manejar `Enter` en el
+input (con `Shift+Enter` para salto de línea).
 
 ---
 
