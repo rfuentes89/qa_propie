@@ -1,6 +1,6 @@
 # Estrategia de Testing — Propie (propie-weld.vercel.app)
 
-> **Autor:** QA Automation Engineer · **Última actualización:** 2026-07-27
+> **Autor:** QA Automation Engineer · **Última actualización:** 2026-07-31
 >
 > Documento elaborado a partir de tres fuentes que se complementan:
 > 1. Análisis UX navegando el sitio en vivo con los 3 roles de usuario.
@@ -8,6 +8,7 @@
 >    [`manual_testing_Propie.pdf`](./manual_testing_Propie.pdf) (18 hallazgos).
 > 3. **Verificación en vivo** de esos 18 hallazgos contra el entorno desplegado,
 >    hecha el 2026-07-28 para separar lo vigente de lo ya corregido.
+> 
 
 ---
 
@@ -1232,9 +1233,7 @@ siguieran cubriendo el problema después de este arreglo.
 
 Los 3 usuarios comparten contraseña, que **no está versionada**: se lee de la
 variable de entorno `PROPIE_QA_PASSWORD` (ver [`.env.example`](../.env.example)
-y [`src/data/users.ts`](../src/data/users.ts)). Este repositorio es público y
-las cuentas apuntan a un sitio realmente desplegado, así que una contraseña en
-el código sería una credencial funcional al alcance de cualquiera.
+y [`src/data/users.ts`](../src/data/users.ts)). 
 
 > La pantalla de login está en **`/ingresar`**, no en `/login` (esa ruta
 > devuelve 404).
