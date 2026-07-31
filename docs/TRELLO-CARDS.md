@@ -15,25 +15,27 @@ la descripción (Trello renderiza este markdown).
 | 4 | PROP-BUG-17 · El mensaje falla en silencio | Alta | frontend · chat |
 | 5 | PROP-BUG-22 · "Pausada" no despublica la propiedad | Alta | backend · estados |
 | 6 | PROP-BUG-25 · "Finalizada" es irreversible y no lo advierte | Alta | frontend · estados |
-| 7 | PROP-BUG-26 · Se ofrece agendar visita donde no se puede, y falla en silencio | Alta | frontend · visitas |
-| 8 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
-| 9 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
-| 10 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
-| 11 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
-| 12 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
-| 13 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
-| 14 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
-| 15 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
-| 16 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
-| 17 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
-| 18 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
-| 19 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
-| 20 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
-| 21 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
-| 22 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
-| 23 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
-| 24 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
-| 25 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
+| 7 | PROP-BUG-27 · El chat anuncia la visita con 4 horas de diferencia | Alta | frontend · visitas |
+| 8 | PROP-BUG-26 · Se ofrece agendar visita donde no se puede, y falla en silencio | Alta | frontend · visitas |
+| 9 | PROP-BUG-28 · No se puede cancelar ni reprogramar una visita | Alta | frontend · visitas |
+| 10 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
+| 11 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
+| 12 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
+| 13 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
+| 14 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
+| 15 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
+| 16 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
+| 17 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
+| 18 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
+| 19 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
+| 20 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
+| 21 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
+| 22 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
+| 23 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
+| 24 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
+| 25 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
+| 26 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 27 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
 
 > 💡 **PROP-BUG-16 y 17 se arreglan juntos.** Uno es el contrato del backend y
 > el otro el manejo del error en el frontend. Cerrar solo uno deja al usuario
@@ -402,6 +404,95 @@ además el registro anterior como basura permanente.
 
 Diálogo de confirmación explicando que la acción no se puede deshacer, o sacar
 "Finalizar" del desplegable y tratarla como acción destructiva aparte.
+
+---
+
+## [PROP-BUG-27] El chat anuncia la visita con la hora en UTC, sin convertir
+
+**Severidad:** Alta · **Área:** frontend / visitas
+
+### Qué pasa
+
+Al agendar una visita, el mensaje del chat muestra una hora **distinta** a la
+elegida. La misma visita se ve con dos horas diferentes según la pantalla.
+
+### Pasos para reproducir
+
+1. Como owner, agendar una visita desde el chat a las **16:30**.
+2. Leer el mensaje que aparece en la conversación.
+3. Abrir `/visitas` y comparar.
+
+### Evidencia
+
+Navegador en `America/Santiago` (UTC−4):
+
+| Dónde | Qué muestra | ¿Correcto? |
+|-------|-------------|------------|
+| Formulario (lo elegido) | 16:30 | — |
+| `scheduledAt` guardado | `2026-08-07T20:30:00.000Z` | ✅ 16:30 −04:00 |
+| Pantalla `/visitas` | `vie, 7 ago · 04:30 p. m.` | ✅ |
+| **Mensaje del chat** | `Visita programada para 7 ago 2026, 8:30 p. m.` | ❌ UTC crudo |
+
+**El almacenamiento es correcto.** El defecto está solo en el render del
+mensaje del chat. Que `/visitas` sí convierta confirma que la lógica existe.
+
+### Impacto
+
+El mensaje del chat es **lo que leen las dos partes** al coordinar. El dueño
+agenda 16:30 y ambos leen "8:30 p. m.": visita perdida.
+
+El desfase varía según la zona horaria, así que dos personas en zonas
+distintas pueden leer horas distintas para la misma visita.
+
+### Arreglo sugerido
+
+Formatear `scheduledAt` en zona local en el mensaje del chat, reutilizando el
+formateo que ya usa `/visitas`.
+
+---
+
+## [PROP-BUG-28] No hay forma de cancelar ni reprogramar una visita
+
+**Severidad:** Alta · **Área:** frontend / visitas
+
+### Qué pasa
+
+Una vez agendada, no se encontró ningún control para cancelar o reprogramar la
+visita, ni para el dueño ni para el cliente.
+
+| Pantalla | Rol | Controles |
+|----------|-----|-----------|
+| `/visitas` | owner | ninguno |
+| `/visitas` | client | ninguno |
+| Chat | owner | solo "Agendar visita" |
+| Chat | client | ninguno |
+
+### La API sí lo soporta
+
+```jsonc
+POST   /property-visits/{id}/cancel → 200   // deja de listarse
+DELETE /property-visits/{id}                // ruta existente
+```
+
+Ambos se usaron para limpiar la visita de prueba.
+
+### Impacto
+
+Se puede crear un compromiso pero no deshacerlo. Si se agendó por error o en
+el horario equivocado —probable, dado PROP-BUG-27—, las dos partes quedan con
+una cita fantasma.
+
+Mismo patrón que PROP-BUG-13: la app crea compromisos que no permite deshacer,
+aunque el backend sí lo permita.
+
+> ⚠️ **Alcance:** se revisaron los botones de `/visitas` y del chat en ambos
+> roles. No se probó pulsar la tarjeta de la visita, que podría abrir un
+> detalle con acciones. Conviene confirmarlo antes de reportar.
+
+### Arreglo sugerido
+
+Exponer cancelar y reprogramar en la tarjeta de la visita, conectándolas a los
+endpoints que ya existen.
 
 ---
 

@@ -94,7 +94,9 @@ con **un solo arreglo** de backend.
 | **PROP-BUG-22** | El estado "Pausada" no despublica: la propiedad sigue en el catálogo | Alta | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-25** | "Finalizada" es irreversible y el desplegable no lo advierte | Alta | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-13** | Abrir el wizard crea una propiedad ACTIVE sin título, imposible de borrar | Alta | Verificación en vivo | ✅ `publicar.spec.ts` |
+| **PROP-BUG-27** | El chat anuncia la visita con 4 horas de diferencia respecto a la agendada | Alta | Revisión de visitas | ❌ pendiente |
 | **PROP-BUG-26** | Se ofrece agendar visita en una propiedad no disponible, y el fallo es silencioso | Alta | Revisión de visitas | ❌ pendiente |
+| **PROP-BUG-28** | No hay forma de cancelar ni reprogramar una visita desde la UI | Alta | Revisión de visitas | ❌ pendiente |
 | **PROP-BUG-23** | El listado no distingue una propiedad reservada de una disponible | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-24** | Un estado inválido devuelve 500 con el error de validación crudo | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-11** | El paso 3 exige habitaciones y baños también para un terreno | Media | Manual #11 | ✅ `publicar.spec.ts` |
@@ -624,6 +626,84 @@ con acceso directo a la API, le va a pasar a un usuario real.
 **Arreglo sugerido.** Diálogo de confirmación explicando que la acción no se
 puede deshacer, o separar "Finalizar" del desplegable de estados y tratarla
 como una acción destructiva aparte.
+
+---
+
+### PROP-BUG-27 — El chat anuncia la visita con la hora en UTC, sin convertir
+
+> **Severidad: Alta** · Origen: revisión de visitas (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** Al agendar una visita, el mensaje que aparece en el chat muestra
+una hora **distinta** a la que se eligió. La misma visita se ve con dos horas
+diferentes según la pantalla.
+
+**Evidencia.** Visita agendada para las **16:30** desde un navegador en
+`America/Santiago` (UTC−4):
+
+| Dónde | Qué muestra | ¿Correcto? |
+|-------|-------------|------------|
+| Formulario (lo que se eligió) | 16:30 | — |
+| `scheduledAt` guardado | `2026-08-07T20:30:00.000Z` | ✅ 16:30 −04:00 = 20:30 UTC |
+| Pantalla `/visitas` | `vie, 7 ago · 04:30 p. m.` | ✅ |
+| **Mensaje del chat** | `Visita programada para 7 ago 2026, 8:30 p. m. (45 min).` | ❌ **es el UTC crudo** |
+
+**El almacenamiento es correcto.** El defecto está solo en el render del
+mensaje del chat, que imprime `scheduledAt` sin convertirlo a la zona del
+usuario. Que `/visitas` sí lo convierta lo confirma: la app tiene la lógica,
+pero no se aplica en ese componente.
+
+**Impacto.** El mensaje del chat es **lo que efectivamente leen las dos
+partes** cuando coordinan: es el hilo de la conversación. El dueño agenda a
+las 16:30, y tanto él como el interesado leen "8:30 p. m." en el chat. Es una
+visita perdida y una desconfianza ganada.
+
+El desfase además **varía con la zona horaria del usuario**, así que dos
+personas en zonas distintas pueden leer horas distintas para la misma visita.
+
+**Arreglo sugerido.** Formatear `scheduledAt` con la zona local en el mensaje
+del chat, reutilizando el mismo formateo que ya usa `/visitas`.
+
+---
+
+### PROP-BUG-28 — No hay forma de cancelar ni reprogramar una visita
+
+> **Severidad: Alta** · Origen: revisión de visitas (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** Una vez agendada, **no se encontró ningún control para cancelar
+o reprogramar** la visita, ni para el dueño ni para el cliente.
+
+| Pantalla | Rol | Controles de cancelación |
+|----------|-----|--------------------------|
+| `/visitas` | owner | ninguno |
+| `/visitas` | client | ninguno |
+| Chat | owner | solo "Agendar visita" |
+| Chat | client | ninguno |
+
+**La API sí lo soporta.** Ambos endpoints existen y funcionan —se usaron para
+limpiar la visita de prueba—:
+
+```jsonc
+POST /property-visits/{id}/cancel → 200   // deja de listarse
+DELETE /property-visits/{id}                // ruta existente
+```
+
+**Impacto.** Se puede crear un compromiso pero no deshacerlo. Si la visita se
+agendó por error, en el horario equivocado —cosa probable, dado
+PROP-BUG-27— o simplemente ya no va, no hay nada que hacer desde la app: las
+dos partes quedan con una cita fantasma en su listado.
+
+Es el mismo patrón que PROP-BUG-13 con las propiedades: **la app crea
+compromisos que después no permite deshacer**, aunque el backend sí lo permita.
+
+> ⚠️ **Alcance de la comprobación:** se revisaron los botones de `/visitas` y
+> del chat en ambos roles. **No** se probó pulsar la tarjeta de la visita en
+> `/visitas`, que podría abrir un detalle con acciones. Conviene confirmarlo
+> antes de reportar.
+
+**Arreglo sugerido.** Exponer cancelar y reprogramar en la tarjeta de la
+visita, conectándolas a los endpoints que ya existen.
 
 ---
 
