@@ -21,13 +21,14 @@ la descripción (Trello renderiza este markdown).
 | 10 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
 | 11 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
 | 12 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
-| 13 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
-| 14 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
-| 15 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
-| 16 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
-| 17 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
-| 18 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
-| 19 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
+| 13 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
+| 14 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
+| 15 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
+| 16 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
+| 17 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
+| 18 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
+| 19 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 20 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
 
 > 💡 **PROP-BUG-16 y 17 se arreglan juntos.** Uno es el contrato del backend y
 > el otro el manejo del error en el frontend. Cerrar solo uno deja al usuario
@@ -597,6 +598,50 @@ acción.
 ### Vigilado por
 
 `tests/propiedad-acciones.spec.ts` (PROP-01, PROP-02)
+
+---
+
+## [PROP-BUG-21] El perfil del agente muestra 0 propiedades trabajadas
+
+**Severidad:** Media · **Área:** frontend
+
+### Qué pasa
+
+El bloque "Estadísticas" del perfil del agente muestra **"Trabajadas: 0"**,
+mientras el backend informa 5.
+
+### Pasos para reproducir
+
+1. Iniciar sesión como `qa.agent`.
+2. Entrar a Perfil desde la barra de navegación inferior.
+3. Mirar el bloque "Estadísticas".
+
+### Evidencia
+
+```
+UI  (perfil del agente)  →  0 Trabajadas · 0 Cerradas · — Reputación
+
+API (dos endpoints coinciden):
+  GET /agents/users/{id}/public    → total_worked_properties: 5,
+  GET /agents/{id}/profile            active_properties: 3,
+                                      completed_properties: 0
+```
+
+De los tres números, **solo "Trabajadas" está mal**: "Cerradas: 0" coincide con
+`completed_properties: 0`, y "Reputación: —" es correcto sin reseñas.
+
+### Impacto
+
+Al agente se le dice que no trabajó ninguna propiedad cuando el backend cuenta
+5. Es justamente la métrica que sostiene el mensaje que la propia pantalla
+muestra debajo —*"Trabajá con propietarios para empezar a construir tu
+reputación"*—, así que el agente no tiene forma de saber que su actividad sí
+está registrada.
+
+### Arreglo sugerido
+
+Mapear el contador a `total_worked_properties`. El dato ya viene en la misma
+respuesta que alimenta el resto del bloque.
 
 ---
 

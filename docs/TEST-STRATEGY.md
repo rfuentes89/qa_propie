@@ -96,6 +96,7 @@ con **un solo arreglo** de backend.
 | **PROP-BUG-12** | Se piden aceptar unos términos que no se pueden leer | Media | Manual #13 | ✅ `publicar.spec.ts` |
 | **PROP-BUG-15** | El visor de fotos deja ver la página detrás (fondo al 94%) | Media | Manual #5 | ✅ `galeria.spec.ts` |
 | **PROP-BUG-14** | Con 5+ fotos, el mosaico deja un bloque negro vacío (51% del área) | Media | Testing manual | ✅ `galeria.spec.ts` |
+| **PROP-BUG-21** | El perfil del agente muestra 0 propiedades trabajadas cuando la API informa 5 | Media | Revisión de reputación | ❌ pendiente |
 | **PROP-BUG-10** | Los filtros del mapa no exponen `aria-pressed` | Media | Verificación en vivo | ✅ `mapa.spec.ts` |
 | **PROP-BUG-08** | Falta concordancia de plural: "1 propiedades visibles" | Baja | Verificación en vivo | ❌ manual (ver §3) |
 
@@ -492,6 +493,46 @@ forma de descubrir cómo mandar un mensaje**.
 
 ---
 
+### PROP-BUG-21 — El perfil del agente muestra 0 propiedades trabajadas
+
+> **Severidad: Media** · Origen: revisión del sistema de reputación (2026-07-28)
+> · Pendiente de automatizar
+
+**Qué pasa.** El bloque "Estadísticas" del perfil del agente muestra
+**"Trabajadas: 0"**, mientras el backend informa 5.
+
+**Evidencia.**
+
+```
+UI  (perfil del agente)  →  0 Trabajadas · 0 Cerradas · — Reputación
+
+API (dos endpoints coinciden):
+  GET /agents/users/{id}/public    → total_worked_properties: 5,
+  GET /agents/{id}/profile            active_properties: 3,
+                                      completed_properties: 0
+```
+
+De los tres números, **solo "Trabajadas" está mal**: "Cerradas: 0" coincide
+con `completed_properties: 0`, y "Reputación: —" es correcto sin reseñas.
+
+**Impacto.** Al agente se le dice que no trabajó ninguna propiedad cuando el
+backend cuenta 5. Es justamente la métrica que sostiene el mensaje que la
+propia pantalla muestra debajo —*"Trabajá con propietarios para empezar a
+construir tu reputación"*—, así que el agente no tiene forma de saber que su
+actividad sí está registrada.
+
+**Arreglo sugerido.** Mapear el contador a `total_worked_properties`. El dato
+ya viene en la misma respuesta que alimenta el resto del bloque.
+
+**Observación menor del mismo flujo.** Al publicar una reseña, el `POST`
+devuelve `201` pero **la reseña no aparece hasta recargar**: el perfil no
+refresca la lista tras la mutación. Es la misma familia de PROP-BUG-17 —el
+usuario no obtiene confirmación de que su acción funcionó— aunque acá el dato
+sí se guardó. No se pudo reintentar para confirmarlo, porque tras reseñar
+`can-review` pasa a `false` y el formulario deja de ofrecerse.
+
+---
+
 ### PROP-BUG-10 — Los filtros del mapa no exponen su estado
 
 > **Severidad: Media** · Origen: verificación en vivo · Tests: `tests/mapa.spec.ts`
@@ -689,6 +730,11 @@ Aun así, el wizard ya lo exige como condición para publicar.
 
 Con un solo resultado, la app escribe `"1 propiedades visibles"` en el mapa y
 `"1 propiedades cerca tuyo"` en `/explorar`. Falta la forma singular.
+
+**Tercera aparición, esta sí en un nombre accesible.** Los botones de estrella
+del formulario de reseña llevan `aria-label="1 estrellas"`, `"2 estrellas"`, y
+así. A diferencia de los conteos, este texto **no depende de datos**: es fijo y
+se puede corregir y asertar sin ninguna de las dificultades descritas abajo.
 
 **Por qué no se automatiza.** El defecto solo se ve con exactamente 1
 resultado, y el conteo del mapa depende del encuadre: al cargar da 1, tras
