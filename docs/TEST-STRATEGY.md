@@ -91,7 +91,11 @@ con **un solo arreglo** de backend.
 | **PROP-BUG-07** | El perfil del **agente** enlaza a `/ayuda` y `/terminos`, que responden 404 | Alta | Manual #7/#9 | ✅ `perfil-agente.spec.ts` |
 | **PROP-BUG-09** | Botones de icono sin nombre accesible, y al menos uno no hace nada | Media | Manual #12 | ✅ `propiedad-acciones.spec.ts` |
 | **PROP-BUG-03** | El aviso "Activá tu ubicación" intercepta clicks en varias pantallas | Media | Análisis UX | ✅ `profile.spec.ts` |
+| **PROP-BUG-22** | El estado "Pausada" no despublica: la propiedad sigue en el catálogo | Alta | Revisión de estados | ❌ pendiente |
+| **PROP-BUG-25** | "Finalizada" es irreversible y el desplegable no lo advierte | Alta | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-13** | Abrir el wizard crea una propiedad ACTIVE sin título, imposible de borrar | Alta | Verificación en vivo | ✅ `publicar.spec.ts` |
+| **PROP-BUG-23** | El listado no distingue una propiedad reservada de una disponible | Media | Revisión de estados | ❌ pendiente |
+| **PROP-BUG-24** | Un estado inválido devuelve 500 con el error de validación crudo | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-11** | El paso 3 exige habitaciones y baños también para un terreno | Media | Manual #11 | ✅ `publicar.spec.ts` |
 | **PROP-BUG-12** | Se piden aceptar unos términos que no se pueden leer | Media | Manual #13 | ✅ `publicar.spec.ts` |
 | **PROP-BUG-15** | El visor de fotos deja ver la página detrás (fondo al 94%) | Media | Manual #5 | ✅ `galeria.spec.ts` |
@@ -544,6 +548,146 @@ filtros están aplicados.
 
 Es el mismo tipo de deuda que PROP-BUG-09 y que la falta de `data-testid`:
 la app no expone estado semántico, solo presentación.
+
+---
+
+### PROP-BUG-22 — El estado "Pausada" no despublica la propiedad
+
+> **Severidad: Alta** · Origen: revisión de estados (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** Pasar una propiedad a `PAUSED` **no la saca del catálogo
+público**. Sigue apareciendo en `/explorar` como cualquier otra.
+
+**Evidencia.** Con la propiedad `f7922a88` ("Bodega en Arriendo") en `PAUSED`:
+
+```
+PATCH /properties/f7922a88…/status  {"status":"PAUSED"}  → 200
+GET   /properties?limit=100 → 17 propiedades · Bodega visible: True
+```
+
+Para comparar, `FINALIZED` **sí** la despublica: al pasarla a ese estado el
+catálogo bajó a 16 y dejó de aparecer.
+
+| Estado | ¿Visible en el catálogo público? | ¿Esperado? |
+|--------|----------------------------------|------------|
+| `ACTIVE` | Sí | ✅ |
+| `RESERVED` | Sí | ✅ (reservada pero aún listada) |
+| `PAUSED` | **Sí** | ❌ **debería ocultarse** |
+| `FINALIZED` | No | ✅ |
+
+**Impacto.** "Pausada" existe precisamente para retirar temporalmente un aviso
+—porque el dueño se fue de viaje, porque está renegociando, porque quiere
+frenar las consultas—. Si no despublica, el estado no sirve para nada y el
+usuario cree haber ocultado algo que sigue a la vista de todos.
+
+**Arreglo sugerido.** Excluir `PAUSED` del filtro del catálogo público, igual
+que ya se hace con `FINALIZED`.
+
+---
+
+### PROP-BUG-25 — "Finalizada" es irreversible y el desplegable no lo advierte
+
+> **Severidad: Alta** · Origen: revisión de estados (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** `FINALIZED` es un estado **terminal**: no admite ninguna
+transición de salida. El desplegable de "Mis Propiedades" lo ofrece como una
+opción más, junto a Activa, Pausada y Reservada, **sin ninguna advertencia ni
+confirmación**.
+
+**Evidencia.** Desde `FINALIZED`, los tres destinos fallan:
+
+```jsonc
+PATCH /properties/{id}/status  {"status":"ACTIVE"}    → 400
+PATCH /properties/{id}/status  {"status":"PAUSED"}    → 400
+PATCH /properties/{id}/status  {"status":"RESERVED"}  → 400
+{ "code": "INVALID_STATUS_TRANSITION", "message": "Cannot t…" }
+```
+
+Que el estado sea terminal es una decisión de negocio razonable. **El defecto
+es la ausencia de fricción en la UI**: un desplegable de cuatro opciones donde
+una destruye el aviso de forma permanente, sin diálogo de confirmación ni
+aviso previo.
+
+**Impacto.** Un clic accidental en un `<select>` retira el aviso del catálogo
+para siempre. La única salida es volver a publicar la propiedad desde cero —y,
+por PROP-BUG-13, eso deja además el registro anterior como basura permanente.
+
+**Comprobado en cabeza propia.** Durante esta misma revisión se pasó una
+propiedad del agente a `FINALIZED` para probar las transiciones, dando por
+supuesto que se podría revertir. No se pudo: quedó finalizada de forma
+irreversible. Si le pasa a alguien que está probando el sistema a propósito,
+con acceso directo a la API, le va a pasar a un usuario real.
+
+**Arreglo sugerido.** Diálogo de confirmación explicando que la acción no se
+puede deshacer, o separar "Finalizar" del desplegable de estados y tratarla
+como una acción destructiva aparte.
+
+---
+
+### PROP-BUG-23 — El listado no distingue una propiedad reservada de una disponible
+
+> **Severidad: Media** · Origen: revisión de estados (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** Una propiedad `RESERVED` aparece en `/explorar` **idéntica a una
+disponible**. El estado solo se revela al abrir la ficha de detalle.
+
+**Evidencia.** Tarjeta de "Terreno en venta" (`RESERVED`) en el listado:
+
+```
+VENTA · US$ 10.000 · Terreno · Terreno en venta · Córdoba, Córdoba
+```
+
+Ninguna de las 17 tarjetas del catálogo menciona "reserv". La ficha de detalle
+sí muestra "Reservada" —ahí funciona bien—, pero el listado no.
+
+**La causa está en la API**: `GET /properties` no expone el campo `status`. Los
+campos que devuelve son `area_m2, bathrooms, bedrooms, city, cover_image,
+created_at, currency, id, operation_type, price, property_type, province,
+title`. El frontend **no podría** mostrar el estado aunque quisiera.
+
+**Impacto.** Quien navega el catálogo no puede distinguir lo disponible de lo
+reservado, y solo se entera después de entrar. Genera consultas sobre
+propiedades que ya no están disponibles —ruido para el dueño y frustración
+para el interesado—.
+
+**Arreglo sugerido.** Exponer `status` en el listado y marcar la tarjeta, como
+ya se hace con el tipo de operación. Requiere tocar backend y frontend, igual
+que PROP-BUG-16/17.
+
+---
+
+### PROP-BUG-24 — Un estado inválido devuelve 500 con el error de validación crudo
+
+> **Severidad: Media** · Origen: revisión de estados (2026-07-31)
+> · Pendiente de automatizar
+
+**Qué pasa.** Enviar un `status` que no existe devuelve **500 Internal Server
+Error** en lugar de un 400, y expone el volcado del validador:
+
+```jsonc
+PATCH /properties/{id}/status  {"status":"BANANA"}
+→ 500
+{ "statusCode": 500, "error": "Internal Server Error",
+  "message": "[\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [ … " }
+```
+
+**Impacto.** Doble:
+
+1. **Contrato incorrecto.** Un cuerpo mal formado es error del cliente (400),
+   no del servidor. Cualquier consumidor de la API que reintente ante 5xx
+   —que es lo razonable— va a reintentar indefinidamente algo que nunca va a
+   funcionar.
+2. **Se filtra estructura interna.** El mensaje devuelve el error de validación
+   sin procesar, incluida la lista de valores admitidos.
+
+Se relaciona con **PROP-BUG-06**: la app trata los 5xx como sesión inválida,
+así que un 500 espurio como este puede además desloguear al usuario.
+
+**Arreglo sugerido.** Devolver 400 con un mensaje propio ante fallo de
+validación, y no exponer el volcado del validador.
 
 ---
 

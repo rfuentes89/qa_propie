@@ -13,22 +13,26 @@ la descripción (Trello renderiza este markdown).
 | 2 | PROP-BUG-06 · Un 5xx cierra la sesión | Crítica | frontend |
 | 3 | PROP-BUG-16 · La API dice que se puede escribir y después rechaza con 403 | Alta | backend · chat |
 | 4 | PROP-BUG-17 · El mensaje falla en silencio | Alta | frontend · chat |
-| 5 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
-| 6 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
-| 7 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
-| 8 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
-| 9 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
-| 10 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
-| 11 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
-| 12 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
-| 13 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
-| 14 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
-| 15 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
-| 16 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
-| 17 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
-| 18 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
-| 19 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
-| 20 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
+| 5 | PROP-BUG-22 · "Pausada" no despublica la propiedad | Alta | backend · estados |
+| 6 | PROP-BUG-25 · "Finalizada" es irreversible y no lo advierte | Alta | frontend · estados |
+| 7 | PROP-BUG-13 · Propiedades fantasma imposibles de borrar | Alta | backend · datos |
+| 8 | PROP-BUG-05 · Bucle en Mensajes | Alta | frontend |
+| 9 | PROP-BUG-01 · El banner PWA bloquea el login | Alta | frontend |
+| 10 | PROP-BUG-07 · El perfil del agente enlaza a 404 | Alta | frontend |
+| 11 | PROP-BUG-03 · El aviso de ubicación intercepta clicks | Media | frontend |
+| 12 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
+| 13 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
+| 14 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
+| 15 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
+| 16 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
+| 17 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
+| 18 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
+| 19 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
+| 20 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
+| 21 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
+| 22 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
+| 23 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 24 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
 
 > 💡 **PROP-BUG-16 y 17 se arreglan juntos.** Uno es el contrato del backend y
 > el otro el manejo del error en el frontend. Cerrar solo uno deja al usuario
@@ -308,6 +312,95 @@ no está disponible cuando sí lo está.
 
 Conectar el websocket, o —si la entrega en vivo no está en alcance todavía—
 quitar el indicador en vez de mostrar un estado falso.
+
+---
+
+## [PROP-BUG-22] El estado "Pausada" no despublica la propiedad
+
+**Severidad:** Alta · **Área:** backend / estados
+
+### Qué pasa
+
+Pasar una propiedad a `PAUSED` **no la saca del catálogo público**. Sigue
+apareciendo en `/explorar` como cualquier otra.
+
+### Pasos para reproducir
+
+1. Como owner o agent, abrir "Mis Propiedades".
+2. Cambiar el estado de una propiedad activa a **Pausada**.
+3. Abrir `/explorar` sin sesión: la propiedad sigue listada.
+
+### Evidencia
+
+```
+PATCH /properties/f7922a88…/status  {"status":"PAUSED"}  → 200
+GET   /properties?limit=100 → 17 propiedades · Bodega visible: True
+```
+
+Para comparar, `FINALIZED` sí despublica: el catálogo bajó a 16.
+
+| Estado | ¿Visible en el catálogo? | ¿Esperado? |
+|--------|--------------------------|------------|
+| `ACTIVE` | Sí | ✅ |
+| `RESERVED` | Sí | ✅ |
+| `PAUSED` | **Sí** | ❌ **debería ocultarse** |
+| `FINALIZED` | No | ✅ |
+
+### Impacto
+
+"Pausada" existe para retirar temporalmente un aviso. Si no despublica, el
+estado no cumple ninguna función y el usuario cree haber ocultado algo que
+sigue a la vista de todos.
+
+### Arreglo sugerido
+
+Excluir `PAUSED` del filtro del catálogo público, igual que ya se hace con
+`FINALIZED`.
+
+---
+
+## [PROP-BUG-25] "Finalizada" es irreversible y el desplegable no lo advierte
+
+**Severidad:** Alta · **Área:** frontend / estados
+
+### Qué pasa
+
+`FINALIZED` es un estado **terminal**: no admite ninguna transición de salida.
+El desplegable de "Mis Propiedades" lo ofrece como una opción más, junto a
+Activa, Pausada y Reservada, **sin advertencia ni confirmación**.
+
+### Pasos para reproducir
+
+1. Como owner o agent, abrir "Mis Propiedades".
+2. En el desplegable de estado de cualquier propiedad, elegir **Finalizada**.
+3. Intentar volver a Activa: no se puede, por ninguna vía.
+
+### Evidencia
+
+```jsonc
+PATCH /properties/{id}/status  {"status":"ACTIVE"}    → 400
+PATCH /properties/{id}/status  {"status":"PAUSED"}    → 400
+PATCH /properties/{id}/status  {"status":"RESERVED"}  → 400
+{ "code": "INVALID_STATUS_TRANSITION" }
+```
+
+### Impacto
+
+Que el estado sea terminal es una decisión de negocio razonable. **El defecto
+es la falta de fricción**: un `<select>` de cuatro opciones donde una retira el
+aviso del catálogo de forma permanente, sin ningún diálogo de por medio.
+
+La única salida es volver a publicar desde cero — y, por PROP-BUG-13, eso deja
+además el registro anterior como basura permanente.
+
+> Ocurrió durante esta misma revisión: se pasó una propiedad a `FINALIZED` para
+> probar transiciones, suponiendo que se podría revertir. Quedó finalizada de
+> forma irreversible.
+
+### Arreglo sugerido
+
+Diálogo de confirmación explicando que la acción no se puede deshacer, o sacar
+"Finalizar" del desplegable y tratarla como acción destructiva aparte.
 
 ---
 
@@ -598,6 +691,85 @@ acción.
 ### Vigilado por
 
 `tests/propiedad-acciones.spec.ts` (PROP-01, PROP-02)
+
+---
+
+## [PROP-BUG-23] El listado no distingue una propiedad reservada de una disponible
+
+**Severidad:** Media · **Área:** backend / estados
+
+### Qué pasa
+
+Una propiedad `RESERVED` aparece en `/explorar` **idéntica a una disponible**.
+El estado solo se revela al abrir la ficha de detalle.
+
+### Pasos para reproducir
+
+1. Abrir `/explorar` sin sesión.
+2. Buscar "Terreno en venta", que está en estado Reservada.
+3. La tarjeta no lo indica; al entrar a la ficha sí aparece "Reservada".
+
+### Evidencia
+
+Tarjeta en el listado:
+
+```
+VENTA · US$ 10.000 · Terreno · Terreno en venta · Córdoba, Córdoba
+```
+
+Ninguna de las 17 tarjetas del catálogo menciona "reserv".
+
+**La causa está en la API**: `GET /properties` no expone `status`. Devuelve
+`area_m2, bathrooms, bedrooms, city, cover_image, created_at, currency, id,
+operation_type, price, property_type, province, title`. El frontend no podría
+mostrarlo aunque quisiera.
+
+### Impacto
+
+Quien navega el catálogo no distingue lo disponible de lo reservado y se entera
+recién al entrar. Genera consultas sobre propiedades que ya no están
+disponibles: ruido para el dueño, frustración para el interesado.
+
+### Arreglo sugerido
+
+Exponer `status` en el listado y marcarlo en la tarjeta, como ya se hace con el
+tipo de operación. Toca backend y frontend.
+
+---
+
+## [PROP-BUG-24] Un estado inválido devuelve 500 con el error de validación crudo
+
+**Severidad:** Media · **Área:** backend / estados
+
+### Qué pasa
+
+Enviar un `status` inexistente devuelve **500 Internal Server Error** en lugar
+de 400, y expone el volcado del validador.
+
+### Pasos para reproducir
+
+```jsonc
+PATCH /properties/{id}/status  {"status":"BANANA"}
+→ 500
+{ "statusCode": 500, "error": "Internal Server Error",
+  "message": "[\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [ … " }
+```
+
+### Impacto
+
+1. **Contrato incorrecto.** Un cuerpo mal formado es error del cliente (400).
+   Cualquier consumidor que reintente ante 5xx —lo razonable— va a reintentar
+   indefinidamente algo que nunca va a funcionar.
+2. **Se filtra estructura interna**: el error de validación sin procesar,
+   incluida la lista de valores admitidos.
+
+Se relaciona con **PROP-BUG-06**: la app trata los 5xx como sesión inválida,
+así que un 500 espurio como este puede además desloguear al usuario.
+
+### Arreglo sugerido
+
+Devolver 400 con un mensaje propio ante fallo de validación, y no exponer el
+volcado del validador.
 
 ---
 
