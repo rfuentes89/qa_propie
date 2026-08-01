@@ -57,7 +57,10 @@ export class PropiedadPage extends BasePage {
     // Acotado al visor: el carrusel en línea tiene otro botón con el mismo nombre.
     this.lightboxNext = this.lightbox.getByRole('button', { name: 'Foto siguiente' });
     this.lightboxPrev = this.lightbox.getByRole('button', { name: 'Foto anterior' });
-    this.lightboxCounter = this.lightbox.getByText(/^\d+\s*\/\s*\d+$/);
+    // Prefer a stable test id when available; fall back to common class names.
+    this.lightboxCounter = this.lightbox.locator(
+      '[data-testid="property-gallery-lightbox-counter"], [data-test="lightbox-counter"], .lightbox__counter, .property-image-gallery__counter'
+    );
   }
 
   /**
