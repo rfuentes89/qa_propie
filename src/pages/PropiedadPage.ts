@@ -59,7 +59,7 @@ export class PropiedadPage extends BasePage {
     this.lightboxPrev = this.lightbox.getByRole('button', { name: 'Foto anterior' });
     // Prefer a stable test id when available; fall back to common class names.
     this.lightboxCounter = page.locator(
-      '[data-testid="property-gallery-lightbox-counter"], [data-test="lightbox-counter"], .lightbox__counter, .property-image-gallery__counter'
+      '[data-testid="property-gallery-lightbox-counter"], [data-test="lightbox-counter"], .lightbox__counter, .property-image-gallery__counter, text=/^\s*\d+\s*\/\s*\d+\s*$/'
     );
   }
 
