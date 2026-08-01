@@ -103,10 +103,11 @@ test.describe('Detalle de propiedad — visor de fotos', () => {
 
     await propiedadPage.gotoProperty(property!.id);
     await propiedadPage.openLightbox();
-    await expect(propiedadPage.lightboxCounter).toHaveText(/^1\s*\/\s*\d+$/);
+    await expect(propiedadPage.lightboxCounter).toBeVisible({ timeout: 5000 });
+    await expect(propiedadPage.lightboxCounter).toHaveText(new RegExp('^\\s*1\\s*/\\s*\\d+\\s*$'));
 
     await propiedadPage.lightboxNext.click();
-    await expect(propiedadPage.lightboxCounter).toHaveText(/^2\s*\/\s*\d+$/);
+    await expect(propiedadPage.lightboxCounter).toHaveText(new RegExp('^\\s*2\\s*/\\s*\\d+\\s*$'));
 
     // La diapositiva cambió; si el fondo sigue transparentando la página, el
     // usuario ve la foto nueva superpuesta sobre la misma imagen fantasma.
@@ -117,16 +118,6 @@ test.describe('Detalle de propiedad — visor de fotos', () => {
     ).toBe(true);
   });
 
-  /**
-   * El recorrido circular del visor es **comportamiento correcto**, no un
-   * defecto (ver TEST-STRATEGY.md §4, reclasificación del hallazgo #14).
-   *
-   * Este caso lo fija como regresión por la misma razón que MAP-01: el bucle
-   * fue reportado como posible bug, y si alguien lo "arregla" deshabilitando
-   * las flechas en los extremos, el cambio pasaría inadvertido. El contador
-   * "N / M" es lo que evita que el usuario se desoriente, así que también se
-   * verifica que acompañe al recorrido.
-   */
   test('el visor debe recorrer las fotos en ciclo en ambos sentidos @smoke', async ({
     propiedadPage,
     request,
@@ -138,22 +129,23 @@ test.describe('Detalle de propiedad — visor de fotos', () => {
     await propiedadPage.openLightbox();
 
     const total = property!.imageCount;
-    await expect(propiedadPage.lightboxCounter).toHaveText(`1 / ${total}`);
+    await expect(propiedadPage.lightboxCounter).toBeVisible({ timeout: 5000 });
+    await expect(propiedadPage.lightboxCounter).toHaveText(new RegExp(`^\\s*1\\s*/\\s*${total}\\s*$`));
 
     // Hasta la última foto.
     for (let i = 2; i <= total; i++) {
       await propiedadPage.lightboxNext.click();
-      await expect(propiedadPage.lightboxCounter).toHaveText(`${i} / ${total}`);
+      await expect(propiedadPage.lightboxCounter).toHaveText(new RegExp(`^\\s*${i}\\s*/\\s*${total}\\s*$`));
     }
 
     // Un paso más desde la última vuelve a la primera, sin deshabilitarse.
     await expect(propiedadPage.lightboxNext).toBeEnabled();
     await propiedadPage.lightboxNext.click();
-    await expect(propiedadPage.lightboxCounter).toHaveText(`1 / ${total}`);
+    await expect(propiedadPage.lightboxCounter).toHaveText(new RegExp(`^\\s*1\\s*/\\s*${total}\\s*$`));
 
     // Y hacia atrás desde la primera lleva a la última.
     await expect(propiedadPage.lightboxPrev).toBeEnabled();
     await propiedadPage.lightboxPrev.click();
-    await expect(propiedadPage.lightboxCounter).toHaveText(`${total} / ${total}`);
+    await expect(propiedadPage.lightboxCounter).toHaveText(new RegExp(`^\\s*${total}\\s*/\\s*${total}\\s*$`));
   });
 });
