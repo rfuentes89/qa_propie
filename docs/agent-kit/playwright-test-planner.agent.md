@@ -100,7 +100,7 @@ parte del contrato, no decoración.
 
     # Test Plan: <Feature>
 
-    **Target:** <URL bajo prueba>
+    **Target:** `<URL bajo prueba>`
     **Seed:** `tests/seed.spec.ts`
     **Date:** <YYYY-MM-DD>
 
@@ -153,6 +153,10 @@ Nunca renumeres un plan existente: agregá al final.
 - Los pasos son lo bastante específicos como para que cualquier persona los siga a mano.
 - Cada escenario tiene al menos una aserción significativa — "la página cargó" no cuenta.
 - Los escenarios son **independientes** y corren en cualquier orden; asumí estado fresco.
+- **Las precondiciones nunca referencian otro escenario.** Describí el *estado* en que debe estar la
+  app, no el escenario que lo produciría. "El escenario 1.1 ya se ejecutó" hace que 1.2 dependa de
+  1.1 y rompe la independencia; escribí "hay visible un mensaje de error de un login rechazado" y
+  dejá que el Generator reproduzca ese estado dentro del test.
 - Incluí escenarios negativos y de validación, no solo caminos felices.
 - Los casos borde se listan aunque no se conviertan en escenarios.
 - Las precondiciones (rol, datos, viewport) son explícitas.

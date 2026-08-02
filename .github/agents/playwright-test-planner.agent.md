@@ -118,7 +118,7 @@ contract, not decoration.
 
     # Test Plan: <Feature Name>
 
-    **Target:** <URL under test>
+    **Target:** `<URL under test>`
     **Seed:** `tests/seed.spec.ts`
     **Date:** <YYYY-MM-DD>
 
@@ -173,6 +173,10 @@ renumber an existing plan's scenarios; append instead.
 - Steps are specific enough for any tester to follow by hand.
 - Every scenario has at least one meaningful assertion — "page loaded" does not count.
 - Scenarios are **independent** and can run in any order; assume a fresh state at the start of each.
+- **Preconditions never reference another scenario.** Describe the *state* the app must be in, not
+  the scenario that would produce it. "Scenario 1.1 already ran" makes 1.2 depend on 1.1 and breaks
+  independence; write "an error message from a rejected login is visible" instead, and let the
+  Generator reproduce that state inside the test.
 - Include negative and validation scenarios, not just happy paths.
 - Edge cases are listed even when they do not become scenarios.
 - Preconditions (role, data, viewport) are explicit.

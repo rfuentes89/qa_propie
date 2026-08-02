@@ -1,6 +1,6 @@
 # Test Plan: Login — casos negativos
 
-**Target:** https://propie-weld.vercel.app/ingresar
+**Target:** `https://propie-weld.vercel.app/ingresar`
 **Seed:** `tests/seed.spec.ts`
 **Date:** 2026-08-02
 
@@ -53,7 +53,8 @@ envío.
 - **Priority:** P2
 - **Tags:** @regression
 - **Role:** anónimo
-- **Preconditions:** escenario 1.1 ya ejecutado dentro del mismo test (el error visible)
+- **Preconditions:** `/ingresar` cargado y visible el mensaje de error de un login rechazado (el
+  test reproduce ese estado por su cuenta; no depende de que 1.1 haya corrido)
 - **Steps:**
   1. Reintentar el login fallido para que aparezca el error — expected: `Invalid credentials` visible
   2. Editar el campo Email con cualquier valor distinto — expected: la región de estado desaparece
