@@ -57,10 +57,12 @@ export class PropiedadPage extends BasePage {
     // Acotado al visor: el carrusel en línea tiene otro botón con el mismo nombre.
     this.lightboxNext = this.lightbox.getByRole('button', { name: 'Foto siguiente' });
     this.lightboxPrev = this.lightbox.getByRole('button', { name: 'Foto anterior' });
-    // Prefer a stable test id when available; fall back to common class names.
-    // Match the visible counter text instead of composing a complex selector
-    // that mixes CSS and Playwright text filters (which caused parse errors).
-    this.lightboxCounter = this.lightbox.getByText(/^\s*\d+\s*\/\s*\d+\s*$/);
+    // Por su clase BEM propia, no por el texto: localizarlo por un regex de
+    // "N / M" hace que el locator dependa del valor que se está asertando, y
+    // en los reintentos resolvía a elementos distintos según el contador
+    // hubiera avanzado o no. La clase identifica al elemento con
+    // independencia de su contenido.
+    this.lightboxCounter = this.lightbox.locator('.property-image-gallery__lightbox-counter');
   }
 
   /**
@@ -83,6 +85,35 @@ export class PropiedadPage extends BasePage {
       await this.page.locator('.property-image-gallery__carousel-slide').first().click();
     }
     await this.lightbox.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Espera a que el contador del visor deje de moverse.
+   *
+   * En móvil, un clic en las flechas puede producir **más de un avance**: se
+   * observó pasar de `1 / 9` a `8 / 9` con un solo clic en "anterior" (dio la
+   * vuelta a 9 y siguió hasta 8). Si se aserta inmediatamente, la aserción
+   * puede capturar un valor en tránsito y el clic siguiente parte de una
+   * posición distinta a la esperada.
+   *
+   * Se resuelve leyendo el contador dos veces seguidas y exigiendo que
+   * coincida, en vez de un `waitForTimeout` fijo: así la espera dura lo que
+   * tenga que durar y el test no depende de un número mágico.
+   *
+   * ⚠️ Esto **compensa** el comportamiento, no lo valida. Si el doble avance
+   * también le ocurre a una persona tocando la pantalla, es un defecto de la
+   * app; ver la nota en TEST-STRATEGY.md §3 (PROP-BUG-29).
+   */
+  async waitForCounterToSettle(timeoutMs = 4000): Promise<string> {
+    const deadline = Date.now() + timeoutMs;
+    let previous = '';
+    while (Date.now() < deadline) {
+      const current = (await this.lightboxCounter.innerText()).trim();
+      if (current && current === previous) return current;
+      previous = current;
+      await this.page.waitForTimeout(250);
+    }
+    return previous;
   }
 
   /**

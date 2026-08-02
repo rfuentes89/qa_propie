@@ -98,6 +98,7 @@ con **un solo arreglo** de backend.
 | **PROP-BUG-27** | El chat anuncia la visita con 4 horas de diferencia respecto a la agendada | Alta | Revisión de visitas | ❌ pendiente |
 | **PROP-BUG-26** | Se ofrece agendar visita en una propiedad no disponible, y el fallo es silencioso | Alta | Revisión de visitas | ❌ pendiente |
 | **PROP-BUG-28** | No hay forma de cancelar ni reprogramar una visita desde la UI | Alta | Revisión de visitas | ❌ pendiente |
+| **PROP-BUG-29** | En móvil, los clics en las flechas del visor se pierden o se duplican | Media | CI (2026-08-02) | ⚠️ omitido en móvil |
 | **PROP-BUG-23** | El listado no distingue una propiedad reservada de una disponible | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-24** | Un estado inválido devuelve 500 con el error de validación crudo | Media | Revisión de estados | ❌ pendiente |
 | **PROP-BUG-11** | El paso 3 exige habitaciones y baños también para un terreno | Media | Manual #11 | ✅ `publicar.spec.ts` |
@@ -755,6 +756,58 @@ propiedad no admite visitas —explicando por qué—, y mostrar el error si el
 
 ---
 
+### PROP-BUG-29 — En móvil, los clics del visor se pierden o se duplican
+
+> **Severidad: Media** · Origen: fallo intermitente en CI (2026-08-02)
+> · Omitido en `mobile-chrome`, activo en escritorio
+
+**Qué pasa.** En el viewport de Pixel 7, los clics sobre las flechas del visor
+de fotos **no se corresponden uno a uno con el avance del contador**. Se
+observaron los dos síntomas:
+
+| Síntoma | Evidencia |
+|---------|-----------|
+| El clic **se pierde** | Desde `9 / 9`, clic en "siguiente" → el contador sigue en `9 / 9` |
+| El clic **se duplica** | Desde `1 / 9`, clic en "anterior" → `8 / 9` (dio la vuelta a 9 y siguió) |
+
+Reproducido **~2 de cada 6 ejecuciones** en local, y en CI. En escritorio no
+ocurre: 21 ejecuciones seguidas sin un solo fallo.
+
+**No es sincronización del test.** Se probó esperando a que el contador se
+estabilice entre clics (`PropiedadPage.waitForCounterToSettle`) y el fallo
+persiste: una espera no recupera un clic que nunca llegó.
+
+> ⚠️ **Sin confirmar que afecte a un usuario real.** Playwright emula el
+> táctil enviando eventos de mouse, así que el comportamiento podría ser un
+> artefacto de la emulación y no un defecto de la app. **Hay que verificarlo a
+> mano en un dispositivo real** antes de reportarlo a desarrollo: abrir el
+> visor y tocar las flechas varias veces seguidas, comprobando que el contador
+> avanza de a uno.
+
+**Decisión de cobertura.** El caso GAL-04 se omite en `mobile-chrome` en vez de
+compensarlo con reintentos. Compensarlo habría ocultado justamente lo que hay
+que investigar. El ciclo del visor sigue cubierto en escritorio, que es donde
+el comportamiento es estable y la funcionalidad es la misma.
+
+**Cómo se encontró.** Vale la pena el detalle, porque el diagnóstico inicial
+fue equivocado dos veces:
+
+1. El test empezó a fallar en CI el 2026-07-30. Se atribuyó al *checkpoint* de
+   Vercel; el JUnit lo desmintió (`auth.setup.ts` pasó los 3 casos).
+2. Se hicieron cinco intentos de arreglo sobre el **formato** del contador
+   —tolerancia a espacios en el regex—. No podían funcionar: el fallo era
+   `Expected "9 / 9"` / `Received "2 / 9"`, y ninguna tolerancia de espacios
+   convierte un 2 en un 9.
+3. La causa inmediata fue que el test recorría las N fotos en un bucle, y la
+   propiedad de prueba se elegía dinámicamente. Al publicarse una propiedad
+   con 9 fotos el 2026-07-29 a las 19:03, el bucle pasó de 1 clic a 8 — y la
+   primera corrida posterior fue la primera en fallar.
+4. Reescrito para probar solo los extremos (2 clics), **siguió fallando**: ahí
+   quedó a la vista que el problema no era el bucle sino la respuesta de las
+   flechas en móvil.
+
+---
+
 ### PROP-BUG-23 — El listado no distingue una propiedad reservada de una disponible
 
 > **Severidad: Media** · Origen: revisión de estados (2026-07-31)
@@ -1233,7 +1286,9 @@ siguieran cubriendo el problema después de este arreglo.
 
 Los 3 usuarios comparten contraseña, que **no está versionada**: se lee de la
 variable de entorno `PROPIE_QA_PASSWORD` (ver [`.env.example`](../.env.example)
-y [`src/data/users.ts`](../src/data/users.ts)). 
+y [`src/data/users.ts`](../src/data/users.ts)). Este repositorio es público y
+las cuentas apuntan a un sitio realmente desplegado, así que una contraseña en
+el código sería una credencial funcional al alcance de cualquiera.
 
 > La pantalla de login está en **`/ingresar`**, no en `/login` (esa ruta
 > devuelve 404).

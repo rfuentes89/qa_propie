@@ -26,16 +26,17 @@ la descripción (Trello renderiza este markdown).
 | 15 | PROP-BUG-09 · Botones de icono sin nombre accesible | Media | a11y |
 | 16 | PROP-BUG-18 · El cliente se ve a sí mismo como interlocutor | Media | backend · chat |
 | 17 | PROP-BUG-19 · "Desconectado" permanente, sin websocket | Media | frontend · chat |
-| 18 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
-| 19 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
-| 20 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
-| 21 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
-| 22 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
-| 23 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
-| 24 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
-| 25 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
-| 26 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
-| 27 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
+| 18 | PROP-BUG-29 · En movil, los clics del visor se pierden o se duplican | Media | frontend · a verificar |
+| 19 | PROP-BUG-23 · El listado no distingue una propiedad reservada | Media | backend · estados |
+| 20 | PROP-BUG-24 · Un estado invalido devuelve 500 | Media | backend · estados |
+| 21 | PROP-BUG-21 · El perfil del agente muestra 0 propiedades trabajadas | Media | frontend |
+| 22 | PROP-BUG-10 · Los filtros del mapa no exponen su estado | Media | a11y |
+| 23 | PROP-BUG-11 · Un terreno exige habitaciones y baños | Media | frontend |
+| 24 | PROP-BUG-12 · Términos que no se pueden leer | Media | frontend · legal |
+| 25 | PROP-BUG-14 · Bloque negro en el mosaico de fotos | Media | frontend |
+| 26 | PROP-BUG-15 · El visor deja ver la página detrás | Media | frontend |
+| 27 | PROP-BUG-08 · Falta concordancia de plural | Baja | frontend |
+| 28 | PROP-BUG-20 · Enter no envía el mensaje | Baja | frontend · chat |
 
 > 💡 **PROP-BUG-16 y 17 se arreglan juntos.** Uno es el contrato del backend y
 > el otro el manejo del error en el frontend. Cerrar solo uno deja al usuario
@@ -832,6 +833,48 @@ acción.
 ### Vigilado por
 
 `tests/propiedad-acciones.spec.ts` (PROP-01, PROP-02)
+
+---
+
+## [PROP-BUG-29] En móvil, los clics del visor se pierden o se duplican
+
+**Severidad:** Media · **Área:** frontend · **⚠️ pendiente de verificar en dispositivo real**
+
+### Qué pasa
+
+En el viewport de Pixel 7, los clics sobre las flechas del visor de fotos no
+se corresponden uno a uno con el avance del contador.
+
+| Síntoma | Evidencia |
+|---------|-----------|
+| El clic **se pierde** | Desde `9 / 9`, clic en "siguiente" → sigue en `9 / 9` |
+| El clic **se duplica** | Desde `1 / 9`, clic en "anterior" → `8 / 9` |
+
+Reproducido ~2 de cada 6 ejecuciones. En escritorio no ocurre: 21 ejecuciones
+seguidas sin fallos.
+
+### Pasos para reproducir
+
+1. En un móvil, abrir una propiedad con varias fotos y abrir el visor.
+2. Tocar la flecha de siguiente/anterior varias veces seguidas.
+3. Comprobar si el contador avanza de a uno en cada toque.
+
+### No es un problema de sincronización
+
+Se probó esperando a que el contador se estabilice entre clics y el fallo
+persiste: una espera no recupera un clic que nunca llegó.
+
+### ⚠️ Antes de darlo por bueno
+
+Playwright emula el táctil enviando eventos de mouse, así que **esto podría ser
+un artefacto de la emulación y no un defecto real**. Hay que verificarlo a mano
+en un dispositivo antes de tomarlo como confirmado.
+
+### Estado en la suite
+
+El caso GAL-04 se omite en `mobile-chrome` en vez de compensarlo con
+reintentos, que habría ocultado justamente lo que hay que investigar. El ciclo
+del visor sigue cubierto en escritorio.
 
 ---
 
