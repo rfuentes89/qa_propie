@@ -9,6 +9,7 @@ export class LoginPage extends BasePage {
   readonly passwordInput: Locator;
   readonly submitButton: Locator;
   readonly installBannerCloseButton: Locator;
+  readonly errorStatus: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -16,6 +17,11 @@ export class LoginPage extends BasePage {
     this.passwordInput = page.getByRole('textbox', { name: 'Contraseña' });
     this.submitButton = page.getByRole('button', { name: 'Iniciar sesión' });
     this.installBannerCloseButton = page.getByRole('button', { name: 'Cerrar' });
+    // El error de login se anuncia en una región `role=status` (ARIA live).
+    // Se localiza por rol y no por texto: el texto es justamente lo que se
+    // aserta, y un locator que dependa del valor asertado se vuelve inútil
+    // en los reintentos (mismo criterio que el contador del visor de fotos).
+    this.errorStatus = page.getByRole('status');
   }
 
   /**
