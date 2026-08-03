@@ -26,8 +26,17 @@ export class PerfilPage extends BasePage {
     this.logoutConfirmButton = this.logoutDialog.getByRole('button', { name: 'Cerrar sesión' });
     this.logoutCancelButton = this.logoutDialog.getByRole('button', { name: 'Cancelar' });
     this.editProfileButton = page.getByRole('button', { name: 'Editar perfil', exact: true });
-    this.saveProfileButton = page.getByRole('button', { name: 'Guardar', exact: true });
-    this.cancelEditButton = page.getByRole('button', { name: 'Cancelar', exact: true });
+    // "Guardar perfil", no "Guardar": la app renombró ambos botones del modo
+    // edición (su hermano pasó de "Cancelar" a "Cancelar edición"). Se
+    // mantiene `exact` a propósito: sin él, 'Guardar' haría match parcial con
+    // "Guardar perfil" y el locator seguiría resolviendo aunque el nombre
+    // volviera a cambiar, que es justo cómo esta deriva pasa desapercibida.
+    this.saveProfileButton = page.getByRole('button', { name: 'Guardar perfil', exact: true });
+    // Misma renombrada que su hermano de arriba. Hoy ningún test lo usa, así
+    // que este cambio NO está verificado en ejecución: se corrige por la
+    // evidencia del DOM capturada al arreglar `saveProfileButton`, para que
+    // el próximo que lo necesite no arranque con un locator ya vencido.
+    this.cancelEditButton = page.getByRole('button', { name: 'Cancelar edición', exact: true });
     this.phoneInput = page.getByRole('textbox', { name: 'Teléfono' });
     this.helpMenuItem = page.getByRole('button', { name: 'Ayuda y soporte', exact: true });
     this.termsMenuItem = page.getByRole('button', { name: 'Términos y privacidad', exact: true });
