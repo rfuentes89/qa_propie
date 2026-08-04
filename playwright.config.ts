@@ -25,6 +25,13 @@ dotenv.config();
  */
 export default defineConfig({
   testDir: './tests',
+  // `seed.spec.ts` es la plantilla de referencia que copia el Generator, no
+  // cobertura: su valor es existir y fijar el estilo de la casa. Se excluye de
+  // la ejecución porque no verifica nada y sí puede tumbar una corrida entera:
+  // en CI se lo llevó puesto el checkpoint anti-bot de Vercel mientras los 82
+  // tests reales pasaban. Un rojo sin información entrena a ignorar los rojos.
+  // Sigue compilando con `tsc`, que es lo que exige su cuerpo mínimo.
+  testIgnore: '**/seed.spec.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,
