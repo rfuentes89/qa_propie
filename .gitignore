@@ -17,3 +17,9 @@ results/
 # y los snapshots viejos pueden arrastrar datos que ya se quitaron del origen.
 docs/*.html
 docs/*_files/
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

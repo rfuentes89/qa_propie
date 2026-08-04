@@ -24,7 +24,7 @@
   "author": "QA Automation",
   "license": "MIT",
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.0",
     "dotenv": "^17.4.2",
     "typescript": "^5.7.0"
