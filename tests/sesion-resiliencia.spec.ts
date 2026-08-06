@@ -1,3 +1,4 @@
+import type { Page, Response } from '@playwright/test';
 import { test, expect } from '../src/fixtures/test-fixtures';
 import { STORAGE_STATE } from '../src/data/users';
 import { STORAGE_KEYS, readStorage } from '../src/utils/session';
@@ -25,16 +26,8 @@ import { STORAGE_KEYS, readStorage } from '../src/utils/session';
  *  2. Usar el rol `client` demuestra que el problema no es específico de
  *     agentes: le pasa a cualquier usuario ante cualquier 5xx.
  */
-/**
- * Devuelve 500 en `/auth/me` y una promesa que resuelve cuando ese 500 se
- * entregó de verdad.
- *
- * Esperar la respuesta es imprescindible: sin eso, la aserción puede correr
- * antes de que la app llegue a llamar al endpoint, la URL sigue intacta y el
- * test "pasa" sin haber reproducido nada. Eso hizo flaky a SES-02 en la
- * primera versión, alternando entre pasar y fallar sin que cambiara la app.
- */
-async function simular500EnAuthMe(page: import('@playwright/test').Page) {
+/** Hace que `/auth/me` devuelva 500. Debe llamarse ANTES del `goto()`. */
+async function interceptar500EnAuthMe(page: Page): Promise<void> {
   await page.route('**/auth/me', (route) =>
     route.fulfill({
       status: 500,
@@ -49,7 +42,25 @@ async function simular500EnAuthMe(page: import('@playwright/test').Page) {
       }),
     }),
   );
+}
 
+/**
+ * Promesa que resuelve cuando el 500 se entregó de verdad.
+ *
+ * Esperar la respuesta es imprescindible: sin eso, la aserción puede correr
+ * antes de que la app llegue a llamar al endpoint, la URL sigue intacta y el
+ * test "pasa" sin haber reproducido nada. Eso hizo flaky a SES-02 en la
+ * primera versión, alternando entre pasar y fallar sin que cambiara la app.
+ *
+ * Va SIN `await` en el test: hay que tener la promesa escuchando antes del
+ * `goto()` que dispara la llamada, y recién awaitearla después. Esta función
+ * NO es `async` a propósito — una función `async` desenvuelve la promesa que
+ * retorna, así que `await esperar500EnAuthMe(page)` en la línea de arriba del
+ * `goto()` se quedaba esperando un 500 que todavía nadie había pedido, moría
+ * por `actionTimeout` y —tapado por el `test.fail()`— dejaba la corrida en
+ * verde sin haber ejecutado una sola aserción.
+ */
+function esperar500EnAuthMe(page: Page): Promise<Response> {
   return page.waitForResponse(
     (response) => response.url().includes('/auth/me') && response.status() === 500,
   );
@@ -61,7 +72,8 @@ test.describe('Resiliencia de sesión ante errores del backend', () => {
   test('un 500 de /auth/me no debe borrar las credenciales @regression', async ({ page }) => {
     test.fail(true, 'PROP-BUG-06: un 5xx se maneja como 401 y dispara un logout destructivo.');
 
-    const error500Entregado = await simular500EnAuthMe(page);
+    await interceptar500EnAuthMe(page);
+    const error500Entregado = esperar500EnAuthMe(page);
 
     await page.goto('/perfil');
     await error500Entregado;
@@ -83,7 +95,8 @@ test.describe('Resiliencia de sesión ante errores del backend', () => {
   }) => {
     test.fail(true, 'PROP-BUG-06: el 5xx redirige a /explorar como si la sesión fuera inválida.');
 
-    const error500Entregado = await simular500EnAuthMe(page);
+    await interceptar500EnAuthMe(page);
+    const error500Entregado = esperar500EnAuthMe(page);
 
     await page.goto('/perfil');
     await error500Entregado;
