@@ -17,9 +17,7 @@ test.describe('Navegación inferior por rol', () => {
   test.describe(`${USERS.owner.roleLabel} (owner)`, () => {
     test.use({ storageState: STORAGE_STATE.owner });
 
-    test('muestra Publicar y Mis Props., no Favoritos/Visitas @smoke', async ({
-      explorarPage,
-    }) => {
+    test('muestra Publicar y Mis Props., no Favoritos/Visitas @smoke', async ({ explorarPage }) => {
       await explorarPage.goto();
       await expect(explorarPage.nav.publicar).toBeVisible();
       await expect(explorarPage.nav.misPropiedades).toBeVisible();

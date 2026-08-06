@@ -18,6 +18,20 @@ export const STORAGE_KEYS = {
   favorites: 'propie_favorite_property_ids',
 } as const;
 
+/**
+ * Forma del archivo de storageState que escribe Playwright, acotada a lo que
+ * se lee acá. Playwright no exporta un tipo público para el contenido del
+ * archivo, así que se declara el mínimo en vez de castear a `any`.
+ */
+interface StorageStateFile {
+  origins?: { localStorage?: { name: string; value: string }[] }[];
+}
+
+/** El payload de un JWT de Propie, acotado al claim que se usa. */
+interface JwtPayload {
+  sub: string;
+}
+
 /** Lee una clave de localStorage en la página actual. */
 export function readStorage(page: Page, key: string): Promise<string | null> {
   return page.evaluate((k) => window.localStorage.getItem(k), key);
@@ -39,7 +53,7 @@ export function readStorage(page: Page, key: string): Promise<string | null> {
 export async function seedFavorites(page: Page, propertyIds: string[]): Promise<void> {
   await page.addInitScript(
     ([key, ids]) => {
-      window.localStorage.setItem(key as string, JSON.stringify(ids));
+      window.localStorage.setItem(key, JSON.stringify(ids));
     },
     [STORAGE_KEYS.favorites, propertyIds] as const,
   );
@@ -55,10 +69,10 @@ export async function seedFavorites(page: Page, propertyIds: string[]): Promise<
  * se valida la firma, que no es responsabilidad del test.
  */
 export function userIdFromStorageState(role: Role): string {
-  const raw = JSON.parse(fs.readFileSync(STORAGE_STATE[role], 'utf-8'));
+  const raw = JSON.parse(fs.readFileSync(STORAGE_STATE[role], 'utf-8')) as StorageStateFile;
   const origin = raw.origins?.[0];
   const token = origin?.localStorage?.find(
-    (entry: { name: string }) => entry.name === STORAGE_KEYS.accessToken,
+    (entry) => entry.name === STORAGE_KEYS.accessToken,
   )?.value;
 
   if (!token) {
@@ -68,15 +82,17 @@ export function userIdFromStorageState(role: Role): string {
     );
   }
 
-  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'));
+  const payload = JSON.parse(
+    Buffer.from(token.split('.')[1], 'base64url').toString('utf-8'),
+  ) as JwtPayload;
   return payload.sub;
 }
 
 /** El accessToken crudo del storageState de un rol, para tests de API. */
 export function accessTokenFromStorageState(role: Role): string {
-  const raw = JSON.parse(fs.readFileSync(STORAGE_STATE[role], 'utf-8'));
+  const raw = JSON.parse(fs.readFileSync(STORAGE_STATE[role], 'utf-8')) as StorageStateFile;
   const token = raw.origins?.[0]?.localStorage?.find(
-    (entry: { name: string }) => entry.name === STORAGE_KEYS.accessToken,
+    (entry) => entry.name === STORAGE_KEYS.accessToken,
   )?.value;
 
   if (!token) throw new Error(`No se encontró accessToken en ${STORAGE_STATE[role]}.`);

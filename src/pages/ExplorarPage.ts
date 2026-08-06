@@ -25,7 +25,9 @@ export class ExplorarPage extends BasePage {
     this.filterVenta = page.getByRole('button', { name: 'Venta' });
     this.moreFiltersButton = page.getByRole('button', { name: 'Más filtros' });
     // Cada tarjeta de propiedad es un link con un heading de nivel 3 dentro.
-    this.propertyCards = page.getByRole('link').filter({ has: page.getByRole('heading', { level: 3 }) });
+    this.propertyCards = page
+      .getByRole('link')
+      .filter({ has: page.getByRole('heading', { level: 3 }) });
   }
 
   async propertyCount(): Promise<number> {
@@ -34,9 +36,7 @@ export class ExplorarPage extends BasePage {
 
   /** Botón "Agregar/Quitar de favoritos" de la tarjeta cuyo título contiene `title`. */
   favoriteButton(title: string): Locator {
-    return this.propertyCards
-      .filter({ hasText: title })
-      .getByRole('button', { name: /favoritos/ });
+    return this.propertyCards.filter({ hasText: title }).getByRole('button', { name: /favoritos/ });
   }
 
   async toggleFavorite(title: string): Promise<void> {

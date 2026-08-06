@@ -1,0 +1,6 @@
+# Solo lint y formato sobre lo que se está commiteando.
+#
+# Deliberadamente NO corre la suite: el baseURL es un sitio real desplegado en
+# Vercel, la corrida completa tarda ~7 min y el volumen dispara la protección
+# anti-bot. Los tests son responsabilidad del workflow e2e.yml, no del commit.
+npx lint-staged

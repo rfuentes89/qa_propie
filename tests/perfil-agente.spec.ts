@@ -54,7 +54,10 @@ test.describe('Perfil del agente', () => {
     // PROP-BUG-07 (ver TEST-STRATEGY.md §3). En el perfil de `client` estos
     // dos accesos fueron removidos, pero en el de `agent` siguen presentes y
     // llevan a un 404. Por eso el defecto no está cerrado: depende del rol.
-    test.fail(true, 'PROP-BUG-07: el perfil del agente sigue enlazando a /ayuda y /terminos (404).');
+    test.fail(
+      true,
+      'PROP-BUG-07: el perfil del agente sigue enlazando a /ayuda y /terminos (404).',
+    );
 
     await perfilPage.gotoViaSpa();
     await expect(perfilPage.helpMenuItem).toBeVisible();

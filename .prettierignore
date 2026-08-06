@@ -1,0 +1,17 @@
+node_modules
+playwright-report
+test-results
+results
+.auth
+.playwright-mcp
+package-lock.json
+
+# Los HTML/CSS/JS renderizados por Quarto son artefactos, no fuente.
+docs/*.html
+docs/*_files/
+
+# La documentación queda fuera a propósito. Prettier no le aporta nada a prosa
+# escrita a mano —normaliza `*enfasis*` a `_enfasis_` y repadea las tablas— y a
+# cambio ensucia el historial: la primera pasada reescribía 400 líneas de
+# TEST-STRATEGY.md sin cambiar una sola palabra.
+*.md

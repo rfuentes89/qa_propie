@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../src/fixtures/test-fixtures';
 import { STORAGE_STATE } from '../src/data/users';
 
@@ -19,12 +20,14 @@ test.describe('Detalle de propiedad — acciones de la cabecera', () => {
   test.use({ storageState: STORAGE_STATE.agent });
 
   /** Abre el detalle de la primera propiedad propia por navegación SPA. */
-  async function abrirPrimeraPropiedadPropia(page: import('@playwright/test').Page) {
+  async function abrirPrimeraPropiedadPropia(page: Page): Promise<void> {
     await page.goto('/explorar');
     await page.getByRole('button', { name: 'Mis Props.', exact: true }).click();
     await expect(page).toHaveURL(/\/mis-propiedades$/);
 
-    const propiedades = page.getByRole('button').filter({ has: page.getByRole('heading', { level: 2 }) });
+    const propiedades = page
+      .getByRole('button')
+      .filter({ has: page.getByRole('heading', { level: 2 }) });
     test.skip(
       (await propiedades.count()) === 0,
       'La cuenta qa.agent no tiene propiedades publicadas.',

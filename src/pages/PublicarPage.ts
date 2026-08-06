@@ -104,7 +104,7 @@ export class PublicarPage extends BasePage {
   async seedDraft(draft: PublishDraft): Promise<void> {
     await this.page.addInitScript(
       ([key, value]) => {
-        window.localStorage.setItem(key as string, JSON.stringify(value));
+        window.localStorage.setItem(key, JSON.stringify(value));
       },
       [
         PublicarPage.DRAFT_KEY,
@@ -139,9 +139,11 @@ export class PublicarPage extends BasePage {
 
   /** Si el wizard llegó a crear un registro en el servidor. */
   async createdPropertyId(): Promise<string | null> {
-    return this.page.evaluate((key) => {
+    return this.page.evaluate((key): string | null => {
       const raw = window.localStorage.getItem(key);
-      return raw ? (JSON.parse(raw).propertyId ?? null) : null;
+      if (!raw) return null;
+      const draft = JSON.parse(raw) as { propertyId?: string };
+      return draft.propertyId ?? null;
     }, PublicarPage.DRAFT_KEY);
   }
 }

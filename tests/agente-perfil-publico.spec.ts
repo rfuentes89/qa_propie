@@ -24,17 +24,14 @@ test.describe('Perfil público del agente', () => {
   // El id se decodifica del JWT del storageState en vez de hardcodearse: las
   // cuentas QA se recrean entre entornos y un UUID fijo haría fallar el test
   // por datos y no por el defecto que vigila.
-  const agentId = () => userIdFromStorageState('agent');
+  const agentId = (): string => userIdFromStorageState('agent');
 
   test('GET /agents/users/{id}/public debe responder 200 @regression', async ({ request }) => {
     const response = await request.get(
       `https://propie-api.onrender.com/agents/users/${agentId()}/public`,
     );
 
-    expect(
-      response.status(),
-      `el backend respondió: ${await response.text()}`,
-    ).toBe(200);
+    expect(response.status(), `el backend respondió: ${await response.text()}`).toBe(200);
   });
 
   test('la ficha pública del agente no debe mostrar "Perfil no encontrado" @regression', async ({

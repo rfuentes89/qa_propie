@@ -47,14 +47,16 @@ export const USERS = {
     password: PASSWORD,
     role: 'owner',
     roleLabel: 'Propietario',
-    description: 'Publica propiedades propias. Nav: Explorar, Publicar, Mis Props., Mensajes, Perfil.',
+    description:
+      'Publica propiedades propias. Nav: Explorar, Publicar, Mis Props., Mensajes, Perfil.',
   },
   agent: {
     email: 'qa.agent@propie.app',
     password: PASSWORD,
     role: 'agent',
     roleLabel: 'Agente',
-    description: 'Gestiona propiedades de terceros. Misma nav que Propietario; perfil con reputación/reseñas.',
+    description:
+      'Gestiona propiedades de terceros. Misma nav que Propietario; perfil con reputación/reseñas.',
   },
 } as const satisfies Record<Role, User>;
 

@@ -12,7 +12,22 @@
     "test:regression": "playwright test --grep @regression",
     "test:chromium": "playwright test --project=chromium",
     "report": "playwright show-report",
-    "codegen": "playwright codegen https://propie-weld.vercel.app/"
+    "codegen": "playwright codegen https://propie-weld.vercel.app/",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,yml,yaml,mjs}": [
+      "prettier --write"
+    ]
   },
   "keywords": [
     "playwright",
@@ -24,9 +39,17 @@
   "author": "QA Automation",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/node": "^22.10.0",
     "dotenv": "^17.4.2",
-    "typescript": "^5.7.0"
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-playwright": "^2.11.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.66.0"
   }
 }

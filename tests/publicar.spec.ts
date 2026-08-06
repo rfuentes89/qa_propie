@@ -38,10 +38,7 @@ test.describe('Publicar — validaciones', () => {
     await publicarPage.continueButton.click();
 
     const aviso = await publicarPage.validationText();
-    expect(
-      aviso,
-      `la validación exige campos que no aplican a un terreno: "${aviso}"`,
-    ).toBeNull();
+    expect(aviso, `la validación exige campos que no aplican a un terreno: "${aviso}"`).toBeNull();
   });
 
   test('abrir un paso del wizard no debe crear una propiedad @regression', async ({

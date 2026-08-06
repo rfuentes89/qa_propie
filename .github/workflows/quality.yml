@@ -1,0 +1,38 @@
+name: Quality
+
+# A diferencia de e2e.yml, esto sí corre en cada push y PR: son ~40 segundos,
+# no instalan navegadores y no tocan el sitio desplegado, así que no hay riesgo
+# de disparar la protección anti-bot de Vercel.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint, formato y tipos
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Prettier
+        run: npm run format:check
+
+      # `tsc` sobre los tests: Playwright transpila sin chequear tipos, así que
+      # sin este paso un error de tipos solo se descubre cuando el test explota
+      # en runtime.
+      - name: TypeScript
+        run: npm run typecheck

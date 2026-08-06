@@ -146,9 +146,7 @@ export class PropiedadPage extends BasePage {
       if (stage) {
         const style = getComputedStyle(stage);
         pageContentHidden =
-          style.visibility === 'hidden' ||
-          style.display === 'none' ||
-          Number(style.opacity) === 0;
+          style.visibility === 'hidden' || style.display === 'none' || Number(style.opacity) === 0;
       }
 
       return { backdropAlpha, pageContentHidden };
