@@ -29,7 +29,10 @@ casi todo:
 - Node 22 (el que usa CI)
 - Reporters: `list` + HTML (`playwright-report/`) + JUnit (`results/junit.xml`)
 - Proyectos: `setup` → `chromium` (Desktop Chrome) y `mobile-chrome` (Pixel 7)
-- CI: GitHub Actions ([`.github/workflows/e2e.yml`](.github/workflows/e2e.yml)), 1 worker, sin sharding
+- ESLint (flat config, con reglas type-checked) + Prettier + Husky/lint-staged en pre-commit
+- CI: dos workflows separados. [`e2e.yml`](.github/workflows/e2e.yml) corre la suite (1 worker, sin
+  sharding, programada). [`quality.yml`](.github/workflows/quality.yml) corre lint, formato y tipos
+  en cada push y PR: son ~40s y no tocan el sitio desplegado
 
 ## Estructura de carpetas
 
@@ -133,6 +136,47 @@ Los ids `PROP-BUG-XX` están en [`docs/TEST-STRATEGY.md`](docs/TEST-STRATEGY.md)
 - Los tests deben ser independientes y correr en cualquier orden
 - Acordate de que la suite también corre en `mobile-chrome`
 
+## Lint, formato y tipos
+
+Antes de dar un cambio por terminado, corré los tres y dejalos en cero:
+
+```sh
+npm run lint         # ESLint
+npm run format       # Prettier (o `format:check` para solo verificar)
+npm run typecheck    # tsc --noEmit
+```
+
+`tsc` no es opcional: Playwright transpila **sin chequear tipos**, así que un error de tipos no
+aparece hasta que el test explota en runtime.
+
+El pre-commit corre lint-staged (ESLint `--fix` + Prettier) sobre lo que estés commiteando. **Nunca
+lo saltees con `--no-verify`.** No corre la suite a propósito: son ~7 min contra un sitio real y el
+volumen dispara el anti-bot.
+
+Reglas mecánicas que ya están enforced, además de las que este documento pide a mano:
+
+- **`no-floating-promises` y `await-thenable`.** Las dos que más rinden acá. En Playwright un
+  `await` de más o de menos es un test que pasa sin probar nada — y si además tiene `test.fail`,
+  el timeout se reporta como verde. No es hipotético: así estuvo SES-02 hasta que ESLint lo
+  destapó. Cuidado especial con envolver `waitForResponse`/`waitForEvent` en una función `async`:
+  una función `async` **desenvuelve** la promesa que retorna, así que perdés la promesa pendiente
+  que necesitabas tener escuchando antes de la acción que la dispara.
+- **`no-explicit-any`** y las `no-unsafe-*`. Las respuestas de API se tipan con la forma mínima que
+  el módulo lee (ver [`catalog.ts`](src/utils/catalog.ts)), no se castean a `any`.
+- **`explicit-function-return-type`** (los callbacks quedan exentos).
+- **`playwright/no-wait-for-timeout`, `no-force-option`, `no-conditional-in-test`,
+  `no-skipped-test`** — la versión mecánica de lo que ya pide la sección de aserciones.
+- **`playwright/expect-expect`** está configurada con `assertFunctionPatterns: ['^expect[A-Z]']`
+  para reconocer las aserciones encapsuladas en Page Objects (`expectLoaded()`,
+  `expectRoleLabel()`, `expectSubmitDisabled()`). Si agregás un método de aserción a un Page Object,
+  nombralo `expectAlgo()` o la regla no lo va a ver.
+
+Los `.md` quedan fuera de Prettier a propósito: normalizar el énfasis y repadear tablas ensucia el
+historial de la documentación sin cambiar una palabra.
+
+Un `eslint-disable` necesita comentario que lo justifique, igual que un locator raro. Si una regla
+te estorba de forma sistemática, decilo en vez de silenciarla caso por caso.
+
 ## Prohibido
 
 - No saltear ni comentar tests que fallan para que CI quede verde
@@ -140,8 +184,10 @@ Los ids `PROP-BUG-XX` están en [`docs/TEST-STRATEGY.md`](docs/TEST-STRATEGY.md)
 - No debilitar una aserción para que un test flaky pase — reportá la inestabilidad
 - No usar `page.evaluate` si existe una alternativa con las herramientas de Playwright
 - No commitear `.env`, credenciales, `storageState` ni tokens
-- No modificar `playwright.config.ts`, `src/fixtures/test-fixtures.ts`, `src/data/`, `src/utils/`
-  ni `tests/auth.setup.ts` sin preguntar
+- No saltear el pre-commit con `--no-verify`
+- No usar `any`, ni apagar una regla de ESLint para que un cambio pase
+- No modificar `playwright.config.ts`, `eslint.config.mjs`, `src/fixtures/test-fixtures.ts`,
+  `src/data/`, `src/utils/` ni `tests/auth.setup.ts` sin preguntar
 - No agregar dependencias npm sin preguntar
 - No dejar `page.pause()` en código commiteado
 - No hardcodear URLs absolutas — todo relativo a `baseURL`

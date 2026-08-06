@@ -225,4 +225,6 @@ parallelism or retries to force a green run.
 - At least one meaningful assertion, and step comments from the plan
 - Tag applied to the test title
 - No `page.waitForTimeout`, no `waitForSelector`
+- `npm run lint` and `npm run typecheck` are clean — Playwright transpiles without type-checking,
+  so a type error only surfaces when the test blows up at runtime
 - Test runs and passes locally

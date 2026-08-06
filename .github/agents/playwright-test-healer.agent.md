@@ -73,6 +73,16 @@ test. Failing tests are visible in the CI dashboard. Weakened tests are invisibl
   — not that a new wait is needed.
 - Auth comes from three `storageState` files produced by `tests/auth.setup.ts`. If the setup project
   failed, every downstream failure is category **E**. Check that first.
+- A test marked `test.fail(true, …)` reports **green when it times out**, because a timeout is still
+  a failure. So "the suite is green" is not evidence that such a test ran its assertions. If one of
+  them takes suspiciously close to `actionTimeout` (10s), read its actual error before concluding
+  anything — it may be dying before it reaches the assertion it claims to cover.
+- A frequent cause of exactly that: wrapping `waitForResponse`/`waitForEvent` in an `async` helper.
+  An `async` function **unwraps** the promise it returns, so `await helper(page)` blocks right there
+  instead of handing you a pending promise to await *after* the action that triggers it. This is
+  what silently disabled SES-02 (see `tests/sesion-resiliencia.spec.ts`).
+- `npm run lint` and `npm run typecheck` must be clean. `@typescript-eslint/no-floating-promises`
+  and `await-thenable` catch the `await` bugs above — run lint before you theorize.
 
 ## What you MAY do
 
